@@ -4,7 +4,7 @@ import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
-import { useStore } from "@/lib/demo/store";
+import { useStore } from "@/lib/store";
 import { scaleIngredients, crossCheckIngredients } from "@/lib/engine/inventory";
 
 const todayISO = new Date().toISOString().slice(0, 10);

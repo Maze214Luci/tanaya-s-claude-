@@ -49,6 +49,8 @@ export const seedProfiles: Profile[] = [
     goal: "PCOS management",
     engagement_style: "planner",
     accessibility: { colorblind_safe: false, larger_text: false },
+    onboarded: true,
+    profile_complete_dismissed: false,
     created_at: new Date().toISOString(),
   },
   {
@@ -61,6 +63,8 @@ export const seedProfiles: Profile[] = [
     goal: "Post-workout recovery",
     engagement_style: "quick",
     accessibility: { colorblind_safe: true, larger_text: false },
+    onboarded: true,
+    profile_complete_dismissed: false,
     created_at: new Date().toISOString(),
   },
 ];
@@ -85,7 +89,7 @@ export const seedLikesDislikes: LikeDislike[] = [
   { id: "ld-2", profile_id: ANKIT_ID, term: "khichdi", sentiment: "dislike", source: "seed" },
 ];
 
-export const seedRecipes: Recipe[] = [
+const rawSeedRecipes: Omit<Recipe, "is_baseline_item">[] = [
   {
     id: "r-poha",
     home_id: HOME_ID,
@@ -214,10 +218,19 @@ export const seedRecipes: Recipe[] = [
   },
 ];
 
+// The first two count as the household's "typical meals" baseline seeded
+// at onboarding; the rest are the shared library, available as "something
+// new" suggestions per the baseline-vs-variety engine rule.
+const BASELINE_SEED_IDS = new Set(["r-poha", "r-paneer-bowl", "r-khichdi"]);
+export const seedRecipes: Recipe[] = rawSeedRecipes.map((r) => ({
+  ...r,
+  is_baseline_item: BASELINE_SEED_IDS.has(r.id),
+}));
+
 export const seedMealSlots: MealSlot[] = [
-  { id: "ms-breakfast-0", home_id: HOME_ID, date: todayISO(0), meal_type: "breakfast", status: "finalized", output_mode: "shared", recipe_id: "r-poha", locked: false },
-  { id: "ms-lunch-0", home_id: HOME_ID, date: todayISO(0), meal_type: "lunch", status: "unplanned", output_mode: null, recipe_id: null, locked: false },
-  { id: "ms-dinner-0", home_id: HOME_ID, date: todayISO(0), meal_type: "dinner", status: "finalized", output_mode: "shared", recipe_id: "r-paneer-bowl", locked: false },
+  { id: "ms-breakfast-0", home_id: HOME_ID, date: todayISO(0), meal_type: "breakfast", status: "finalized", output_mode: "shared", recipe_id: "r-poha", locked: false, is_new_item_suggestion: false },
+  { id: "ms-lunch-0", home_id: HOME_ID, date: todayISO(0), meal_type: "lunch", status: "unplanned", output_mode: null, recipe_id: null, locked: false, is_new_item_suggestion: false },
+  { id: "ms-dinner-0", home_id: HOME_ID, date: todayISO(0), meal_type: "dinner", status: "finalized", output_mode: "shared", recipe_id: "r-paneer-bowl", locked: false, is_new_item_suggestion: false },
 ];
 
 export const seedPresence: MealSlotPresence[] = [

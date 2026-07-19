@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Lock, LockOpen, RefreshCw } from "lucide-react";
-import { useStore } from "@/lib/demo/store";
+import { useStore } from "@/lib/store";
 import type { MealSlot } from "@/lib/types";
 
 const MEAL_TYPES: MealSlot["meal_type"][] = ["breakfast", "lunch", "dinner"];

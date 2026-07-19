@@ -11,8 +11,10 @@ import {
   History,
   Users,
   Sprout,
+  LogOut,
 } from "lucide-react";
-import { useStore } from "@/lib/demo/store";
+import { useStore } from "@/lib/store";
+import { nextRouteFor } from "@/lib/store/routing";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: HomeIcon },
@@ -24,22 +26,20 @@ const NAV = [
 ];
 
 function navTarget(pathname: string) {
-  if (pathname.startsWith("/today") || pathname.startsWith("/recipe") || pathname.startsWith("/meals")) return "/";
+  if (pathname.startsWith("/recipe") || pathname.startsWith("/meals")) return "/";
   return pathname;
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { state, currentProfile, switchProfile } = useStore();
+  const { state, mode, currentProfile, switchProfile, signOut } = useStore();
+
+  const redirectTarget = nextRouteFor(state);
 
   useEffect(() => {
-    if (!state.home || !state.currentProfileId) {
-      router.replace("/login");
-    } else if (!state.onboarded) {
-      router.replace("/onboarding/persona");
-    }
-  }, [state.home, state.currentProfileId, state.onboarded, router]);
+    if (redirectTarget) router.replace(redirectTarget);
+  }, [redirectTarget, router]);
 
   useEffect(() => {
     document.documentElement.setAttribute(
@@ -48,7 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }, [currentProfile?.accessibility.colorblind_safe]);
 
-  if (!state.home || !state.currentProfileId || !state.onboarded) {
+  if (redirectTarget) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="sub">Loading your kitchen…</p>
@@ -93,10 +93,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+        <button
+          className="btn-ghost mt-4 flex w-full items-center justify-center gap-2"
+          onClick={() => {
+            signOut();
+            router.replace("/login");
+          }}
+        >
+          <LogOut size={13} /> sign out
+        </button>
       </aside>
 
       <main className="mx-auto w-full max-w-[680px] flex-1 px-5 pb-24 pt-8 md:px-8">
-        {state.profiles.length > 1 && (
+        {mode === "demo" && state.profiles.length > 1 && (
           <div className="mb-4 flex items-center justify-end gap-2 text-[11px]" style={{ color: "var(--ink2)" }}>
             viewing as
             <select

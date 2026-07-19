@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
-import { StoreProvider } from "@/lib/demo/store";
+import { StoreProvider } from "@/lib/store";
 import { ToastHost } from "@/components/ToastHost";
 
 const fraunces = Fraunces({

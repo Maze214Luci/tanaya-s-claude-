@@ -1,7 +1,7 @@
 "use client";
 
 import { History as HistoryIcon, Star } from "lucide-react";
-import { useStore } from "@/lib/demo/store";
+import { useStore } from "@/lib/store";
 
 export default function HistoryPage() {
   const { state, currentProfile } = useStore();

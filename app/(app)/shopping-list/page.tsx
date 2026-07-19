@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ShoppingCart, Check } from "lucide-react";
-import { useStore } from "@/lib/demo/store";
+import { useStore } from "@/lib/store";
 
 export default function ShoppingListPage() {
   const { state, addShoppingItem, togglePurchased, toast } = useStore();

@@ -45,8 +45,9 @@ export interface Profile {
   goal: string | null;
   engagement_style: EngagementStyle | null;
   accessibility: Accessibility;
+  onboarded: boolean;
+  profile_complete_dismissed: boolean;
   created_at: string;
-  profile_complete_dismissed?: boolean;
 }
 
 export interface Allergy {
@@ -108,6 +109,7 @@ export interface Recipe {
   dietary_tags: string[];
   portion_base: number;
   is_household_variant: boolean;
+  is_baseline_item: boolean;
   veg: boolean;
   moods: MoodTag[];
   time_minutes: number;
@@ -122,6 +124,7 @@ export interface MealSlot {
   output_mode: OutputMode | null;
   recipe_id: string | null;
   locked: boolean;
+  is_new_item_suggestion: boolean;
 }
 
 export interface MealSlotPresence {

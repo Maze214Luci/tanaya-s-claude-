@@ -1,26 +1,38 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useStore } from "@/lib/demo/store";
+import { useStore } from "@/lib/store";
+import { nextRouteFor } from "@/lib/store/routing";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { state, signInDemo } = useStore();
+  const { state, signInDemo, authSignIn } = useStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (state.home && state.currentProfileId) {
-      router.replace(state.onboarded ? "/" : "/onboarding/persona");
-    }
-  }, [state.home, state.currentProfileId, state.onboarded, router]);
+    const next = nextRouteFor(state);
+    if (next && next !== "/login") router.replace(next);
+  }, [state, router]);
 
-  function handleSignIn(e: React.FormEvent) {
+  async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
-    signInDemo();
-    router.push("/");
+    setError(null);
+    if (!isSupabaseConfigured) {
+      signInDemo();
+      router.push("/");
+      return;
+    }
+    setSubmitting(true);
+    const { error: signInError } = await authSignIn(email, password);
+    setSubmitting(false);
+    if (signInError) setError(signInError);
+    // success routes automatically via the effect above once the session lands
   }
 
   return (
@@ -40,24 +52,27 @@ export default function LoginPage() {
       )}
 
       <form onSubmit={handleSignIn}>
-        <label>Phone or email</label>
-        <input type="text" placeholder="name@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <label>Email</label>
+        <input type="email" placeholder="name@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required={isSupabaseConfigured} />
         <label>Password</label>
-        <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button type="submit" className="btn-primary" style={{ width: "100%", marginTop: 8 }}>
-          sign in
+        <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required={isSupabaseConfigured} />
+        {error && <p style={{ color: "var(--brick)", fontSize: 12, margin: "0 0 10px" }}>{error}</p>}
+        <button type="submit" className="btn-primary" style={{ width: "100%", marginTop: 8 }} disabled={submitting}>
+          {submitting ? "signing in…" : "sign in"}
         </button>
       </form>
 
       <div className="divider-trail">or</div>
 
-      <button
-        className="btn-ghost"
-        style={{ width: "100%" }}
-        onClick={() => router.push("/onboarding/home")}
-      >
-        create or join a home instead
-      </button>
+      {isSupabaseConfigured ? (
+        <Link href="/signup" className="btn-ghost" style={{ width: "100%", textAlign: "center", display: "block" }}>
+          create an account
+        </Link>
+      ) : (
+        <button className="btn-ghost" style={{ width: "100%" }} onClick={() => router.push("/onboarding/home")}>
+          create or join a home instead
+        </button>
+      )}
     </div>
   );
 }

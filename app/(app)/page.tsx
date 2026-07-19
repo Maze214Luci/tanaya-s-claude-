@@ -1,64 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, Check, Clock, Sun, Sunrise, MoonStar, Sprout } from "lucide-react";
-import { useStore } from "@/lib/demo/store";
-import { Avatars } from "@/components/Avatars";
-import type { MealSlot } from "@/lib/types";
-
-const todayISO = new Date().toISOString().slice(0, 10);
-const MEAL_META: Record<MealSlot["meal_type"], { icon: React.ReactNode; label: string }> = {
-  breakfast: { icon: <Sunrise size={12} />, label: "breakfast" },
-  lunch: { icon: <Sun size={12} />, label: "lunch" },
-  dinner: { icon: <MoonStar size={12} />, label: "dinner" },
-};
-
-function MealCard({ mealType }: { mealType: MealSlot["meal_type"] }) {
-  const { state, getEffectivePresence } = useStore();
-  const slot = state.mealSlots.find((m) => m.date === todayISO && m.meal_type === mealType);
-  const recipe = slot?.recipe_id ? state.recipes.find((r) => r.id === slot.recipe_id) : null;
-  const present = (slot ? getEffectivePresence(slot.id) : state.profiles.map((p) => ({ profileId: p.id, present: true })))
-    .filter((p) => p.present)
-    .map((p) => state.profiles.find((pr) => pr.id === p.profileId))
-    .filter((p): p is NonNullable<typeof p> => Boolean(p));
-
-  const finalized = slot?.status === "finalized" && recipe;
-  const orderedIn = slot?.status === "ordered_in";
-
-  return (
-    <div className={`mcard ${finalized ? "corner-fold" : ""}`} style={{ background: "var(--surf)", border: "0.5px solid var(--bd)", borderRadius: 14, padding: 12, position: "relative", boxShadow: "var(--shadow)" }}>
-      {finalized && (
-        <div className="stamp">
-          <Check size={15} />
-        </div>
-      )}
-      <div className="ribbon" style={{ fontSize: 11, color: "var(--sage)", display: "flex", alignItems: "center", gap: 4 }}>
-        {MEAL_META[mealType].icon}
-        {MEAL_META[mealType].label}
-      </div>
-      {finalized ? (
-        <>
-          <div style={{ fontFamily: "var(--font-serif)", fontSize: 15, margin: "5px 0 8px" }}>{recipe!.name}</div>
-          <Avatars profiles={present} />
-          <Link href={`/recipe/${slot.id}`} className="btn-link">view recipe →</Link>
-        </>
-      ) : orderedIn ? (
-        <>
-          <div className="sub" style={{ margin: "5px 0 8px" }}>
-            Ordered in <span style={{ fontSize: 10, border: "0.5px solid var(--bd)", padding: "2px 8px", borderRadius: 20, marginLeft: 4 }}>no inventory used</span>
-          </div>
-          <Avatars profiles={present} />
-        </>
-      ) : (
-        <>
-          <div className="sub" style={{ fontStyle: "italic", margin: "5px 0 8px" }}>No meal planned yet</div>
-          <Avatars profiles={present} />
-          <Link href={`/today?meal=${mealType}`} className="btn-link">see suggestions →</Link>
-        </>
-      )}
-    </div>
-  );
-}
+import { AlertTriangle, Clock, Sprout } from "lucide-react";
+import { useStore } from "@/lib/store";
+import { MealCard } from "@/components/MealCard";
 
 export default function DashboardPage() {
   const { state, currentProfile, dismissProfileNudge } = useStore();
@@ -74,7 +19,7 @@ export default function DashboardPage() {
         <Sprout size={26} color="var(--sage)" />
         <h1 style={{ margin: 0 }}>
           Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"},{" "}
-          {state.profiles.map((p) => p.name).join(" & ")}
+          {state.profiles.map((p) => p.name).join(" & ") || "there"}
         </h1>
       </div>
       <p className="sub" style={{ marginLeft: 34 }}>{dateLabel}</p>
@@ -89,7 +34,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="meals" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+      {/* Dashboard is the single home for meal status — all three slots
+          always visible, unplanned ones carry their suggestions inline. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
         <MealCard mealType="breakfast" />
         <MealCard mealType="lunch" />
         <MealCard mealType="dinner" />

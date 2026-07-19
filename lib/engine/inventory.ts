@@ -45,11 +45,36 @@ export function deductInventory(
   });
 }
 
+// Rule (PRD 7.7.46 / #30): every ingredient is scaled independently from
+// its own per-serving quantity, never by applying one multiplier to a
+// flat "serves N" total — and rounded appropriately for its unit, so a
+// count-like ingredient never displays as "2.33 lemons" while a
+// weight-based one (233g) isn't crudely rounded away.
+const COUNT_UNITS = new Set(["unit", "sprig", "bunch"]);
+const COARSE_UNITS = new Set(["kg", "L"]);
+
+function roundForUnit(qty: number, unit: string): number {
+  if (COARSE_UNITS.has(unit)) return Math.round(qty * 100) / 100;
+  if (COUNT_UNITS.has(unit)) return Math.round(qty * 2) / 2; // nearest half
+  return Math.round(qty); // g, ml, tsp, tbsp — nearest whole
+}
+
 export function scaleIngredients(
   base: IngredientLine[],
   portionBase: number,
   presentCount: number
 ): IngredientLine[] {
   const factor = presentCount / Math.max(1, portionBase);
-  return base.map((i) => ({ ...i, quantity: Math.round(i.quantity * factor * 100) / 100 }));
+  return base.map((i) => ({ ...i, quantity: roundForUnit(i.quantity * factor, i.unit) }));
+}
+
+/** Display-friendly quantity — count-like fractions render as ½/¼/¾. */
+export function formatQuantity(qty: number, unit: string): string {
+  if (COUNT_UNITS.has(unit) && qty % 1 !== 0) {
+    const whole = Math.floor(qty);
+    const frac = qty - whole;
+    const fracStr = Math.abs(frac - 0.5) < 0.01 ? "½" : Math.abs(frac - 0.25) < 0.01 ? "¼" : Math.abs(frac - 0.75) < 0.01 ? "¾" : frac.toFixed(2).replace(/^0/, "");
+    return whole > 0 ? `${whole}${fracStr}` : fracStr;
+  }
+  return `${qty}`;
 }

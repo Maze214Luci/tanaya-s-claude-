@@ -1,28 +1,18 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type {
-  Allergy,
-  Avoidance,
-  DeviationLogEntry,
   FeedbackEntry,
-  HealthCondition,
-  Home,
   InventoryItem,
-  Invite,
-  LikeDislike,
   MealSlot,
-  MealSlotPresence,
   MoodTag,
   Profile,
   Recipe,
   Role,
   ShoppingListItem,
-  TravelDay,
-  VitaminMineralAnomaly,
   WeeklyScheduleEntry,
-  Zone,
 } from "@/lib/types";
+import { StoreContext, freshState, type Ctx, type State } from "@/lib/store/context";
 import * as seed from "./seed";
 import {
   MOOD_CONFLICTS,
@@ -33,53 +23,7 @@ import {
 } from "@/lib/engine/constraints";
 import { crossCheckIngredients, deductInventory, scaleIngredients } from "@/lib/engine/inventory";
 
-interface State {
-  currentProfileId: string | null;
-  home: Home | null;
-  profiles: Profile[];
-  allergies: Allergy[];
-  avoidances: Avoidance[];
-  weeklySchedule: WeeklyScheduleEntry[];
-  healthConditions: HealthCondition[];
-  vitaminAnomalies: VitaminMineralAnomaly[];
-  likesDislikes: LikeDislike[];
-  recipes: Recipe[];
-  mealSlots: MealSlot[];
-  presence: MealSlotPresence[];
-  travelDays: TravelDay[];
-  inventory: InventoryItem[];
-  shoppingList: ShoppingListItem[];
-  feedback: FeedbackEntry[];
-  deviations: DeviationLogEntry[];
-  invites: Invite[];
-  onboarded: boolean;
-}
-
 const STORAGE_KEY = "kitchen-companion-demo-v1";
-
-function freshState(): State {
-  return {
-    currentProfileId: null,
-    home: null,
-    profiles: [],
-    allergies: [],
-    avoidances: [],
-    weeklySchedule: [],
-    healthConditions: [],
-    vitaminAnomalies: [],
-    likesDislikes: [],
-    recipes: [],
-    mealSlots: [],
-    presence: [],
-    travelDays: [],
-    inventory: [],
-    shoppingList: [],
-    feedback: [],
-    deviations: [],
-    invites: [],
-    onboarded: false,
-  };
-}
 
 function seededState(): State {
   return {
@@ -109,62 +53,20 @@ function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-interface Ctx {
-  state: State;
-  currentProfile: Profile | null;
-  isAdmin: boolean;
-  toasts: string[];
-  toast: (msg: string) => void;
-  resetDemo: () => void;
-  signInDemo: () => void;
-  switchProfile: (profileId: string) => void;
-  createHome: (homeName: string, personName: string) => void;
-  savePersonaStep1: (fields: Partial<Profile>) => void;
-  saveAllergies: (names: string[]) => void;
-  saveAvoidances: (names: string[]) => void;
-  saveWeeklySchedule: (entries: Omit<WeeklyScheduleEntry, "id" | "profile_id">[]) => void;
-  saveHealthConditions: (entries: { name: string; is_private: boolean }[]) => void;
-  saveVitaminAnomalies: (entries: { nutrient: string; status: "deficient" | "elevated"; is_private: boolean }[]) => void;
-  setAccessibility: (fields: Partial<Profile["accessibility"]>) => void;
-  dismissProfileNudge: () => void;
-  setPresence: (mealSlotId: string, profileId: string, present: boolean) => void;
-  setTraveling: (profileId: string, date: string, traveling: boolean) => void;
-  isTraveling: (profileId: string, date: string) => boolean;
-  getEffectivePresence: (mealSlotId: string) => { profileId: string; present: boolean }[];
-  getEffectivePresenceForDate: (date: string) => { profileId: string; present: boolean }[];
-  getSuggestions: (
-    mealSlotId: string,
-    opts: { veg: boolean; moods: MoodTag[] }
-  ) => SuggestionResult[];
-  getSuggestionsForDate: (date: string, opts: { veg: boolean; moods: MoodTag[] }) => SuggestionResult[];
-  acceptSuggestion: (mealSlotId: string, recipeId: string) => void;
-  markOrderedIn: (mealSlotId: string) => void;
-  ensureMealSlot: (date: string, mealType: MealSlot["meal_type"]) => MealSlot;
-  markCooked: (mealSlotId: string) => { needsFeedback: boolean };
-  submitFeedback: (
-    mealSlotId: string,
-    fields: { taste_rating: number; portion_feedback: FeedbackEntry["portion_feedback"]; repeat_decision: boolean }
-  ) => void;
-  hasFeedback: (profileId: string, recipeId: string) => boolean;
-  addInventoryItem: (item: Omit<InventoryItem, "id" | "home_id">) => void;
-  updateInventoryItem: (id: string, fields: Partial<InventoryItem>) => void;
-  removeInventoryItem: (id: string) => void;
-  addShoppingItem: (item: Omit<ShoppingListItem, "id" | "home_id" | "status">) => void;
-  togglePurchased: (id: string) => void;
-  generateWeek: (weekStartISO: string) => void;
-  setSlotRecipe: (mealSlotId: string, recipeId: string) => void;
-  regenerateSlot: (mealSlotId: string) => void;
-  toggleLockSlot: (mealSlotId: string) => void;
-  finalizeWeek: (weekStartISO: string) => void;
-  createInvite: (contact: string) => void;
-  approveInvite: (id: string, role: Role) => void;
-  declineInvite: (id: string) => void;
-  crossCheck: (recipeId: string, presentCount: number) => ReturnType<typeof crossCheckIngredients>;
+/** Baseline = stated typical meals + recipes a profile said they'd repeat.
+ * Empty when the household hasn't established one yet (see constraints.ts). */
+function computeBaselineIds(s: State): Set<string> {
+  const ids = new Set<string>();
+  for (const r of s.recipes) if (r.is_baseline_item) ids.add(r.id);
+  for (const f of s.feedback) {
+    if (!f.repeat_decision) continue;
+    const slot = s.mealSlots.find((m) => m.id === f.meal_id);
+    if (slot?.recipe_id) ids.add(slot.recipe_id);
+  }
+  return ids;
 }
 
-const StoreContext = createContext<Ctx | null>(null);
-
-export function StoreProvider({ children }: { children: React.ReactNode }) {
+export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State>(freshState);
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<string[]>([]);
@@ -216,6 +118,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setState((s) => (s.onboarded ? s : seededState()));
   }, []);
 
+  const signOut = useCallback(() => resetDemo(), [resetDemo]);
+
+  const authSignIn = useCallback(async () => {
+    signInDemo();
+    return { error: null };
+  }, [signInDemo]);
+
+  const authSignUp = useCallback(async () => {
+    signInDemo();
+    return { error: null, needsConfirmation: false };
+  }, [signInDemo]);
+
   const createHome = useCallback((homeName: string, personName: string) => {
     const homeId = uid("home");
     const profileId = uid("profile");
@@ -233,11 +147,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           goal: null,
           engagement_style: null,
           accessibility: { colorblind_safe: false, larger_text: false },
+          onboarded: false,
+          profile_complete_dismissed: false,
           created_at: new Date().toISOString(),
         },
       ],
       currentProfileId: profileId,
-      recipes: seed.seedRecipes,
+      recipes: seed.seedRecipes.map((r) => ({ ...r, is_baseline_item: false })),
       onboarded: false,
     }));
   }, []);
@@ -271,22 +187,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         ...s.avoidances.filter((a) => a.profile_id !== s.currentProfileId),
         ...names.map((name) => ({ id: uid("av"), profile_id: s.currentProfileId!, name })),
       ],
-      onboarded: true,
     }));
   }, []);
 
-  const saveWeeklySchedule = useCallback(
-    (entries: Omit<WeeklyScheduleEntry, "id" | "profile_id">[]) => {
-      setState((s) => ({
-        ...s,
-        weeklySchedule: [
-          ...s.weeklySchedule.filter((w) => w.profile_id !== s.currentProfileId),
-          ...entries.map((e) => ({ ...e, id: uid("ws"), profile_id: s.currentProfileId! })),
-        ],
-      }));
-    },
-    []
-  );
+  const saveWeeklySchedule = useCallback((entries: Omit<WeeklyScheduleEntry, "id" | "profile_id">[]) => {
+    setState((s) => ({
+      ...s,
+      weeklySchedule: [
+        ...s.weeklySchedule.filter((w) => w.profile_id !== s.currentProfileId),
+        ...entries.map((e) => ({ ...e, id: uid("ws"), profile_id: s.currentProfileId! })),
+      ],
+    }));
+  }, []);
 
   const saveHealthConditions = useCallback((entries: { name: string; is_private: boolean }[]) => {
     setState((s) => ({
@@ -311,21 +223,68 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const setAccessibility = useCallback(
-    (fields: Partial<Profile["accessibility"]>) => {
-      setState((s) => ({
-        ...s,
-        profiles: s.profiles.map((p) =>
-          p.id === s.currentProfileId ? { ...p, accessibility: { ...p.accessibility, ...fields } } : p
-        ),
-      }));
-    },
-    []
-  );
+  const saveLikesDislikes = useCallback((entries: { term: string; sentiment: "like" | "dislike" }[]) => {
+    setState((s) => ({
+      ...s,
+      likesDislikes: [
+        ...s.likesDislikes.filter((l) => l.profile_id !== s.currentProfileId),
+        ...entries.map((e) => ({ id: uid("ld"), profile_id: s.currentProfileId!, ...e, source: "seed" as const })),
+      ],
+    }));
+  }, []);
+
+  // build-flows prompt step 8: typical meals become real, queryable
+  // recipe rows (not strings on the profile), flagged as the household's
+  // baseline repertoire.
+  const saveTypicalMeals = useCallback((entries: { mealType: MealSlot["meal_type"]; name: string }[]) => {
+    setState((s) => {
+      const homeId = s.home?.id ?? seed.HOME_ID;
+      const newRecipes: Recipe[] = [];
+      for (const entry of entries) {
+        const already = s.recipes.some(
+          (r) => r.home_id === homeId && r.name.toLowerCase() === entry.name.toLowerCase()
+        );
+        if (already) continue;
+        newRecipes.push({
+          id: uid("recipe"),
+          home_id: homeId,
+          name: entry.name,
+          base_ingredients: [],
+          steps: [],
+          utensils: [],
+          dietary_tags: [],
+          portion_base: 2,
+          is_household_variant: false,
+          is_baseline_item: true,
+          veg: true,
+          moods: [],
+          time_minutes: 20,
+        });
+      }
+      return { ...s, recipes: [...s.recipes, ...newRecipes] };
+    });
+  }, []);
+
+  const setAccessibility = useCallback((fields: Partial<Profile["accessibility"]>) => {
+    setState((s) => ({
+      ...s,
+      profiles: s.profiles.map((p) =>
+        p.id === s.currentProfileId ? { ...p, accessibility: { ...p.accessibility, ...fields } } : p
+      ),
+    }));
+  }, []);
 
   const dismissProfileNudge = useCallback(() => {
     updateCurrentProfile({ profile_complete_dismissed: true });
   }, [updateCurrentProfile]);
+
+  const completeOnboarding = useCallback(() => {
+    setState((s) => ({
+      ...s,
+      onboarded: true,
+      profiles: s.profiles.map((p) => (p.id === s.currentProfileId ? { ...p, onboarded: true } : p)),
+    }));
+  }, []);
 
   const setPresence = useCallback((mealSlotId: string, profileId: string, present: boolean) => {
     setState((s) => {
@@ -377,9 +336,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         .map((p) => state.profiles.find((pr) => pr.id === p.profileId))
         .filter((p): p is Profile => Boolean(p))
         .map((p) => toPersonConstraints(p, state.allergies, state.avoidances));
-      return filterAndRankRecipes(state.recipes, people, opts);
+      return filterAndRankRecipes(state.recipes, people, {
+        veg: opts.veg,
+        moods: opts.moods,
+        baselineIds: computeBaselineIds(state),
+      });
     },
-    [getEffectivePresence, state.profiles, state.allergies, state.avoidances, state.recipes]
+    [getEffectivePresence, state]
   );
 
   // Pure, slot-free variants — used to render "no meal planned yet" screens
@@ -397,9 +360,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         .map((p) => state.profiles.find((pr) => pr.id === p.profileId))
         .filter((p): p is Profile => Boolean(p))
         .map((p) => toPersonConstraints(p, state.allergies, state.avoidances));
-      return filterAndRankRecipes(state.recipes, people, opts);
+      return filterAndRankRecipes(state.recipes, people, {
+        veg: opts.veg,
+        moods: opts.moods,
+        baselineIds: computeBaselineIds(state),
+      });
     },
-    [getEffectivePresenceForDate, state.profiles, state.allergies, state.avoidances, state.recipes]
+    [getEffectivePresenceForDate, state]
   );
 
   const logDeviationsForChoice = useCallback((mealSlotId: string, chosen: SuggestionResult) => {
@@ -429,18 +396,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         .map((p) => state.profiles.find((pr) => pr.id === p.profileId))
         .filter((p): p is Profile => Boolean(p))
         .map((p) => toPersonConstraints(p, state.allergies, state.avoidances));
-      const [ranked] = filterAndRankRecipes([recipe], people, { veg: recipe.veg, moods: [] });
+      const [ranked] = filterAndRankRecipes([recipe], people, {
+        veg: recipe.veg,
+        moods: [],
+        baselineIds: computeBaselineIds(state),
+      });
       const outputMode = ranked ? computeOutputMode(people, ranked) : "shared";
       if (ranked) logDeviationsForChoice(mealSlotId, ranked);
 
       setState((s) => ({
         ...s,
         mealSlots: s.mealSlots.map((m) =>
-          m.id === mealSlotId ? { ...m, recipe_id: recipeId, status: "finalized", output_mode: outputMode } : m
+          m.id === mealSlotId
+            ? { ...m, recipe_id: recipeId, status: "finalized", output_mode: outputMode, is_new_item_suggestion: ranked?.isNewItem ?? false }
+            : m
         ),
       }));
     },
-    [state.recipes, state.profiles, state.allergies, state.avoidances, getEffectivePresence, logDeviationsForChoice]
+    [state, getEffectivePresence, logDeviationsForChoice]
   );
 
   // Rule (brief #5): ordered-in skips recipe generation + inventory
@@ -467,6 +440,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         output_mode: null,
         recipe_id: null,
         locked: false,
+        is_new_item_suggestion: false,
       };
       setState((s) => ({ ...s, mealSlots: [...s.mealSlots, created] }));
       return created;
@@ -576,6 +550,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setState((s) => {
         const mealTypes: MealSlot["meal_type"][] = ["breakfast", "lunch", "dinner"];
         const slots = [...s.mealSlots];
+        const baselineIds = computeBaselineIds(s);
         // Variety logic: track recently-used recipes across the whole week
         // so the same dish doesn't repeat back-to-back within a day or
         // across adjacent days.
@@ -593,7 +568,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             }
             const veg = d % 3 !== 2;
             const people = s.profiles.map((p) => toPersonConstraints(p, s.allergies, s.avoidances));
-            const ranked = filterAndRankRecipes(s.recipes, people, { veg, moods: [] });
+            const ranked = filterAndRankRecipes(s.recipes, people, { veg, moods: [], baselineIds });
             const fresh = ranked.filter((r) => !recentlyUsed.slice(-3).includes(r.recipe.id));
             const pool = fresh.length ? fresh : ranked;
             const pick = pool[cursor % Math.max(1, pool.length)] ?? ranked[0];
@@ -603,7 +578,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const outputMode = computeOutputMode(people, pick);
             if (existing) {
               const idx = slots.indexOf(existing);
-              slots[idx] = { ...existing, recipe_id: pick.recipe.id, status: "suggested", output_mode: outputMode };
+              slots[idx] = { ...existing, recipe_id: pick.recipe.id, status: "suggested", output_mode: outputMode, is_new_item_suggestion: pick.isNewItem };
             } else {
               slots.push({
                 id: uid("ms"),
@@ -614,6 +589,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 output_mode: outputMode,
                 recipe_id: pick.recipe.id,
                 locked: false,
+                is_new_item_suggestion: pick.isNewItem,
               });
             }
           }
@@ -693,12 +669,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const createInvite = useCallback((contact: string) => {
+  const createInvite = useCallback((contact: string, role: Role) => {
     setState((s) => ({
       ...s,
       invites: [
         ...s.invites,
-        { id: uid("inv"), home_id: s.home?.id ?? seed.HOME_ID, invitee_contact: contact, status: "pending", proposed_role: "member", created_at: new Date().toISOString() },
+        { id: uid("inv"), home_id: s.home?.id ?? seed.HOME_ID, invitee_contact: contact, status: "pending", proposed_role: role, created_at: new Date().toISOString() },
       ],
     }));
   }, []);
@@ -717,6 +693,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         goal: null,
         engagement_style: null,
         accessibility: { colorblind_safe: false, larger_text: false },
+        onboarded: false,
+        profile_complete_dismissed: false,
         created_at: new Date().toISOString(),
       };
       return {
@@ -731,12 +709,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, invites: s.invites.map((i) => (i.id === id ? { ...i, status: "declined" } : i)) }));
   }, []);
 
+  const setMemberRole = useCallback((profileId: string, role: Role) => {
+    setState((s) => ({
+      ...s,
+      profiles: s.profiles.map((p) => (p.id === profileId ? { ...p, role } : p)),
+    }));
+  }, []);
+
   const value: Ctx = {
+    mode: "demo",
     state,
     currentProfile,
     isAdmin,
     toasts,
     toast,
+    authSignIn,
+    authSignUp,
+    signOut,
     resetDemo,
     signInDemo,
     switchProfile,
@@ -747,8 +736,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     saveWeeklySchedule,
     saveHealthConditions,
     saveVitaminAnomalies,
+    saveLikesDislikes,
+    saveTypicalMeals,
     setAccessibility,
     dismissProfileNudge,
+    completeOnboarding,
     setPresence,
     setTraveling,
     isTraveling,
@@ -775,6 +767,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     createInvite,
     approveInvite,
     declineInvite,
+    setMemberRole,
     crossCheck,
   };
 
@@ -783,11 +776,5 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
-export function useStore() {
-  const ctx = useContext(StoreContext);
-  if (!ctx) throw new Error("useStore must be used within StoreProvider");
-  return ctx;
-}
-
+export { useStore } from "@/lib/store/context";
 export const MOOD_CONFLICT_MAP = MOOD_CONFLICTS;
-export type { Zone };

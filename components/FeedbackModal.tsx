@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Star } from "lucide-react";
-import { useStore } from "@/lib/demo/store";
+import { useStore } from "@/lib/store";
 import type { FeedbackEntry } from "@/lib/types";
 
 export function FeedbackModal({

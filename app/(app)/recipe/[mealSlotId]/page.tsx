@@ -3,18 +3,19 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, ListChecks, Apple } from "lucide-react";
-import { useStore } from "@/lib/demo/store";
+import { ArrowLeft, ExternalLink, ListChecks, Apple, Minus, Plus, Sparkles } from "lucide-react";
+import { useStore } from "@/lib/store";
 import { Avatars } from "@/components/Avatars";
 import { IngredientBadge } from "@/components/StatusIcon";
 import { FeedbackModal } from "@/components/FeedbackModal";
-import { scaleIngredients } from "@/lib/engine/inventory";
+import { scaleIngredients, crossCheckIngredients, formatQuantity } from "@/lib/engine/inventory";
 
 export default function RecipePage({ params }: { params: Promise<{ mealSlotId: string }> }) {
   const { mealSlotId } = use(params);
   const router = useRouter();
-  const { state, getEffectivePresence, markCooked, crossCheck, toast } = useStore();
+  const { state, getEffectivePresence, markCooked, toast } = useStore();
   const [showFeedback, setShowFeedback] = useState(false);
+  const [portionOverride, setPortionOverride] = useState<number | null>(null);
 
   const slot = state.mealSlots.find((m) => m.id === mealSlotId);
   const recipe = slot?.recipe_id ? state.recipes.find((r) => r.id === slot.recipe_id) : null;
@@ -33,8 +34,12 @@ export default function RecipePage({ params }: { params: Promise<{ mealSlotId: s
     .map((p) => state.profiles.find((pr) => pr.id === p.profileId))
     .filter((p): p is NonNullable<typeof p> => Boolean(p));
 
-  const scaled = scaleIngredients(recipe.base_ingredients, recipe.portion_base, present.length || recipe.portion_base);
-  const checks = crossCheck(recipe.id, present.length);
+  // Headcount from actual presence for this slot — a manual override here
+  // is a one-time adjustment (e.g. a guest), never written back to the
+  // recipe's stored portion_base.
+  const headcount = portionOverride ?? present.length ?? recipe.portion_base;
+  const scaled = scaleIngredients(recipe.base_ingredients, recipe.portion_base, headcount || recipe.portion_base);
+  const checks = crossCheckIngredients(scaled, state.inventory);
 
   const allergyTags = present.flatMap((p) => state.allergies.filter((a) => a.profile_id === p.id).map((a) => `No ${a.name.toLowerCase()}`));
 
@@ -54,7 +59,14 @@ export default function RecipePage({ params }: { params: Promise<{ mealSlotId: s
         <ArrowLeft size={13} /> back to dashboard
       </Link>
       <p className="ribbon sub" style={{ margin: 0 }}>{slot.meal_type} · {slot.date === new Date().toISOString().slice(0, 10) ? "today" : slot.date}</p>
-      <h1>{recipe.name}</h1>
+      <h1 style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        {recipe.name}
+        {slot.is_new_item_suggestion && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--amber)", fontWeight: 500 }}>
+            <Sparkles size={12} /> something new
+          </span>
+        )}
+      </h1>
       <Avatars profiles={present} />
       <div style={{ margin: "8px 0" }}>
         {slot.output_mode && (
@@ -69,21 +81,49 @@ export default function RecipePage({ params }: { params: Promise<{ mealSlotId: s
       </div>
 
       <h2><Apple size={15} color="var(--sage)" />Ingredients</h2>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <span className="sub" style={{ margin: 0 }}>Portions</span>
+        <button
+          className="btn-ghost"
+          style={{ padding: "3px 8px" }}
+          onClick={() => setPortionOverride(Math.max(1, headcount - 1))}
+        >
+          <Minus size={12} />
+        </button>
+        <span style={{ fontSize: 13, minWidth: 14, textAlign: "center" }}>{headcount}</span>
+        <button
+          className="btn-ghost"
+          style={{ padding: "3px 8px" }}
+          onClick={() => setPortionOverride(headcount + 1)}
+        >
+          <Plus size={12} />
+        </button>
+        {portionOverride !== null && (
+          <button className="btn-link" onClick={() => setPortionOverride(null)}>reset to presence ({present.length})</button>
+        )}
+      </div>
       <div className="card stitch">
+        {recipe.base_ingredients.length === 0 && (
+          <p className="sub" style={{ margin: 0 }}>No ingredients listed yet — this looks like a quick baseline stub. Edit it to add a full ingredient list.</p>
+        )}
         {scaled.map((ing, i) => (
           <div className="item" key={ing.name}>
-            <span>{ing.quantity}{ing.unit} {ing.name}</span>
+            <span>{formatQuantity(ing.quantity, ing.unit)}{ing.unit} {ing.name}</span>
             <IngredientBadge status={checks[i]?.status ?? "need"} />
           </div>
         ))}
       </div>
 
       <h2><ListChecks size={15} color="var(--sage)" />Steps</h2>
-      <ol style={{ fontSize: 13, lineHeight: 1.7, paddingLeft: 18, listStyleType: "decimal" }}>
-        {recipe.steps.map((s, i) => (
-          <li key={i}>{s}</li>
-        ))}
-      </ol>
+      {recipe.steps.length === 0 ? (
+        <p className="sub">No steps added yet.</p>
+      ) : (
+        <ol style={{ fontSize: 13, lineHeight: 1.7, paddingLeft: 18, listStyleType: "decimal" }}>
+          {recipe.steps.map((s, i) => (
+            <li key={i}>{s}</li>
+          ))}
+        </ol>
+      )}
 
       {recipe.utensils.length > 0 && (
         <>

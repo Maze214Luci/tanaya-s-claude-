@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ShoppingBasket, Plus, Trash2 } from "lucide-react";
-import { useStore } from "@/lib/demo/store";
+import { useStore } from "@/lib/store";
 import { FreshnessBadge } from "@/components/StatusIcon";
 import type { Zone } from "@/lib/types";
 

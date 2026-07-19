@@ -24,6 +24,8 @@ export interface SuggestionResult {
   recipe: Recipe;
   /** true if this recipe required flexing a soft constraint for someone present */
   deviatesFor: { profileId: string; term: string }[];
+  /** deliberate "something new" pick outside the household's baseline/likes (PRD 7.3.21) */
+  isNewItem: boolean;
 }
 
 /**
@@ -31,11 +33,17 @@ export interface SuggestionResult {
  * relaxed. Avoidances are soft — a recipe that trips one is still
  * eligible, but is flagged so the caller can log a deviation and rank it
  * behind recipes that don't trip anything.
+ *
+ * `baselineIds`, when non-empty, marks which recipes count as the
+ * household's established repertoire (typical-meals entries + previously
+ * repeated meals). Everything else is "something new". When empty (a
+ * fresh household with no baseline yet), no new/baseline distinction is
+ * made — there's nothing established to contrast against.
  */
 export function filterAndRankRecipes(
   recipes: Recipe[],
   people: PersonConstraints[],
-  opts: { veg: boolean; moods: MoodTag[] }
+  opts: { veg: boolean; moods: MoodTag[]; baselineIds?: Set<string> }
 ): SuggestionResult[] {
   const candidates = recipes.filter((r) => r.veg === opts.veg);
   const moodFiltered = opts.moods.length
@@ -49,6 +57,8 @@ export function filterAndRankRecipes(
     );
   });
 
+  const baselineIds = opts.baselineIds ?? new Set<string>();
+
   const results: SuggestionResult[] = hardSafe.map((recipe) => {
     const ingredientNames = recipe.base_ingredients.map((i) => i.name.toLowerCase());
     const deviatesFor: { profileId: string; term: string }[] = [];
@@ -59,11 +69,40 @@ export function filterAndRankRecipes(
         }
       }
     }
-    return { recipe, deviatesFor };
+    const isNewItem = baselineIds.size > 0 && !recipe.is_baseline_item && !baselineIds.has(recipe.id);
+    return { recipe, deviatesFor, isNewItem };
   });
 
   // Recipes with no deviations rank first; stable otherwise.
-  return results.sort((a, b) => a.deviatesFor.length - b.deviatesFor.length);
+  results.sort((a, b) => a.deviatesFor.length - b.deviatesFor.length);
+
+  return baselineIds.size > 0 ? interleaveVariety(results) : results;
+}
+
+/**
+ * Interleaves flagged "something new" items into the baseline-ranked list
+ * roughly every 4th slot (~1-in-4-5 overall), rather than only ever
+ * re-ranking the known baseline.
+ */
+function interleaveVariety(results: SuggestionResult[]): SuggestionResult[] {
+  const baseline = results.filter((r) => !r.isNewItem);
+  const novel = results.filter((r) => r.isNewItem);
+  if (!novel.length || !baseline.length) return results;
+
+  const out: SuggestionResult[] = [];
+  let ni = 0;
+  baseline.forEach((r, i) => {
+    out.push(r);
+    if ((i + 1) % 4 === 0 && ni < novel.length) {
+      out.push(novel[ni]);
+      ni++;
+    }
+  });
+  while (ni < novel.length) {
+    out.push(novel[ni]);
+    ni++;
+  }
+  return out;
 }
 
 export function toPersonConstraints(

@@ -25,6 +25,11 @@ create table profiles (
   goal text,
   engagement_style text check (engagement_style in ('planner', 'quick')),
   accessibility jsonb not null default '{"colorblind_safe": false, "larger_text": false}'::jsonb,
+  -- true once this profile has finished (or explicitly skipped through)
+  -- the persona onboarding flow — persisted so it survives across
+  -- devices/sessions, not just local UI state.
+  onboarded boolean not null default false,
+  profile_complete_dismissed boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -84,7 +89,14 @@ create table recipes (
   utensils jsonb not null default '[]'::jsonb,
   dietary_tags jsonb not null default '[]'::jsonb,
   portion_base int not null default 2,
+  veg boolean not null default true,
+  moods jsonb not null default '[]'::jsonb,
+  time_minutes int not null default 20,
   is_household_variant boolean not null default false,
+  -- was this recipe named as part of the household's stated typical-meals
+  -- baseline during onboarding? drives the suggestion engine's
+  -- baseline-vs-something-new blend (PRD 7.3.21).
+  is_baseline_item boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -97,6 +109,10 @@ create table meal_slots (
   output_mode text check (output_mode in ('shared', 'base_addon', 'split')),
   recipe_id uuid references recipes (id) on delete set null,
   locked boolean not null default false,
+  -- true when this slot's accepted meal was a deliberate "something new"
+  -- pick rather than drawn from the household's baseline/likes history
+  -- (PRD 7.3.21 / data model sec 9).
+  is_new_item_suggestion boolean not null default false,
   created_at timestamptz not null default now(),
   unique (home_id, date, meal_type)
 );
@@ -288,8 +304,18 @@ create policy "vma: write self" on vitamin_mineral_anomalies
 
 -- home-scoped operational tables: any household member can read/write
 -- within their own home (shared source of truth per PRD principle).
-create policy "recipes: household" on recipes
-  for all using (home_id = my_home_id()) with check (home_id = my_home_id());
+--
+-- recipes: home_id = null is the shared, seeded recipe library every home
+-- can suggest from out of the box; home_id set is a household's own recipe
+-- (including edited variants of a library recipe — build brief #47).
+create policy "recipes: read global or household" on recipes
+  for select using (home_id is null or home_id = my_home_id());
+create policy "recipes: insert household" on recipes
+  for insert with check (home_id = my_home_id());
+create policy "recipes: update household" on recipes
+  for update using (home_id = my_home_id());
+create policy "recipes: delete household" on recipes
+  for delete using (home_id = my_home_id());
 
 create policy "meal_slots: household" on meal_slots
   for all using (home_id = my_home_id()) with check (home_id = my_home_id());
@@ -329,6 +355,17 @@ create policy "invites: household create" on invites
 create policy "invites: admin update" on invites
   for update using (is_home_admin(home_id));
 
+-- A brand-new signed-up user has no home yet (my_home_id() is null), so the
+-- policies above don't apply to them. These let them find and accept their
+-- own pending invite by email match, which is how the app auto-joins an
+-- invitee to a home right after signup instead of requiring an invite code.
+create policy "invites: invitee read own pending" on invites
+  for select using (invitee_contact = auth.email() and status = 'pending');
+create policy "invites: invitee accept own pending" on invites
+  for update
+  using (invitee_contact = auth.email() and status = 'pending')
+  with check (invitee_contact = auth.email());
+
 -- =========================================================================
 -- STORAGE (pantry / receipt photo uploads)
 -- =========================================================================
@@ -344,3 +381,52 @@ create policy "pantry-photos: household read"
 create policy "pantry-photos: household write"
   on storage.objects for insert
   with check (bucket_id = 'pantry-photos' and (storage.foldername(name))[1] = my_home_id()::text);
+
+-- =========================================================================
+-- GLOBAL RECIPE LIBRARY (home_id = null — every home can suggest from these
+-- immediately; "mark cooked" on one creates no household variant unless the
+-- household edits it, per build brief #47)
+-- =========================================================================
+
+insert into recipes (home_id, name, base_ingredients, steps, utensils, dietary_tags, portion_base, veg, moods, time_minutes, is_household_variant)
+values
+  (null, 'Vegetable poha',
+   '[{"name":"Flattened rice","quantity":200,"unit":"g"},{"name":"Onion","quantity":1,"unit":"unit"},{"name":"Peas","quantity":50,"unit":"g"},{"name":"Mustard seeds","quantity":1,"unit":"tsp"}]',
+   '["Rinse the poha and let it soften.","Temper mustard seeds, curry leaves and onion.","Add peas and turmeric, mix in the poha.","Finish with lemon and coriander."]',
+   '["Kadai","Strainer"]', '["Low-GI","No peanuts"]', 2, true, '["homely","light"]', 20, false),
+  (null, 'Grilled paneer bowl',
+   '[{"name":"Paneer","quantity":200,"unit":"g"},{"name":"Bell pepper","quantity":1,"unit":"unit"},{"name":"Lemon","quantity":1,"unit":"unit"},{"name":"Olive oil","quantity":1,"unit":"tbsp"}]',
+   '["Cube the paneer and bell pepper into even pieces.","Toss with olive oil, salt and pepper.","Grill on a hot pan for 4–5 minutes, turning occasionally.","Squeeze fresh lemon over the top before serving."]',
+   '["Grill pan","Tongs"]', '["Low-GI","Extra protein"]', 2, true, '["light","new"]', 20, false),
+  (null, 'Dal khichdi with ghee',
+   '[{"name":"Rice","quantity":150,"unit":"g"},{"name":"Toor dal","quantity":100,"unit":"g"},{"name":"Ghee","quantity":1,"unit":"tbsp"},{"name":"Turmeric","quantity":1,"unit":"tsp"}]',
+   '["Pressure-cook rice and dal together with turmeric.","Temper cumin in ghee and pour over.","Serve hot with a side of curd."]',
+   '["Pressure cooker"]', '["Homely","Fasting-friendly"]', 2, true, '["homely","warm"]', 25, false),
+  (null, 'Vegetable pulao',
+   '[{"name":"Basmati rice","quantity":200,"unit":"g"},{"name":"Mixed vegetables","quantity":150,"unit":"g"},{"name":"Whole spices","quantity":1,"unit":"tsp"}]',
+   '["Saute whole spices and vegetables.","Add soaked rice and water, cook through.","Rest for 5 minutes before fluffing."]',
+   '["Pot with lid"]', '["Homely"]', 2, true, '["homely","warm"]', 30, false),
+  (null, 'Curd rice with tempering',
+   '[{"name":"Cooked rice","quantity":200,"unit":"g"},{"name":"Curd","quantity":150,"unit":"ml"},{"name":"Mustard seeds","quantity":1,"unit":"tsp"}]',
+   '["Mash rice lightly and mix with curd.","Temper mustard seeds, curry leaves and green chilli.","Chill briefly before serving."]',
+   '["Mixing bowl"]', '["Light","Cooling"]', 2, true, '["homely","light"]', 15, false),
+  (null, 'Sprouts salad',
+   '[{"name":"Mixed sprouts","quantity":150,"unit":"g"},{"name":"Tomato","quantity":1,"unit":"unit"},{"name":"Lemon","quantity":1,"unit":"unit"},{"name":"Onion","quantity":0.5,"unit":"unit"}]',
+   '["Steam sprouts lightly.","Toss with chopped onion, tomato and lemon juice.","Season and serve chilled."]',
+   '["Steamer"]', '["Low-GI","High protein"]', 2, true, '["light","cold","new"]', 10, false),
+  (null, 'Grilled fish curry',
+   '[{"name":"Fish fillet","quantity":300,"unit":"g"},{"name":"Coconut milk","quantity":150,"unit":"ml"},{"name":"Curry leaves","quantity":1,"unit":"sprig"}]',
+   '["Marinate fish in spices for 15 minutes.","Sear fillets, then simmer in coconut milk curry.","Finish with curry leaves and a squeeze of lime."]',
+   '["Skillet"]', '["Extra protein"]', 2, false, '["spicy","warm"]', 35, false),
+  (null, 'Chicken clear soup',
+   '[{"name":"Chicken breast","quantity":200,"unit":"g"},{"name":"Garlic","quantity":3,"unit":"unit"},{"name":"Spring onion","quantity":2,"unit":"unit"}]',
+   '["Simmer chicken with garlic and ginger until tender.","Shred and return to the broth.","Finish with spring onion and cracked pepper."]',
+   '["Soup pot"]', '["Extra protein","Recovery"]', 2, false, '["light","warm","homely"]', 25, false),
+  (null, 'Egg bhurji wrap',
+   '[{"name":"Eggs","quantity":4,"unit":"unit"},{"name":"Onion","quantity":1,"unit":"unit"},{"name":"Whole wheat wrap","quantity":2,"unit":"unit"}]',
+   '["Scramble eggs with onion, tomato and chilli.","Warm the wraps.","Roll the bhurji into the wraps and serve."]',
+   '["Skillet"]', '["Extra protein"]', 2, false, '["spicy","new"]', 15, false);
+-- Note: this whole schema file is meant to run once against a fresh
+-- project. Re-running it will duplicate these seed rows (there's no
+-- natural unique key to conflict on) and error on the `create table`
+-- statements above.
