@@ -1,0 +1,327 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #F5EFE4;
+  --surf: #FDFBF6;
+  --ink: #33291F;
+  --ink2: #7A6C58;
+  --sage: #6B7A4F;
+  --brick: #B5502F;
+  --bd: #E3D8C5;
+  --amber: #A87B1D;
+  --moon: #4C5B7A;
+  --shadow: 0 2px 4px rgba(51, 41, 31, 0.06), 0 8px 20px rgba(51, 41, 31, 0.06);
+}
+
+:root[data-theme="dark"] {
+  --bg: #211B14;
+  --surf: #2C2419;
+  --ink: #F0E8DB;
+  --ink2: #B5A88F;
+  --sage: #8FA06A;
+  --brick: #D97A54;
+  --bd: #443A2C;
+  --amber: #D9A94A;
+  --moon: #7C8DB5;
+  --shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #211B14;
+    --surf: #2C2419;
+    --ink: #F0E8DB;
+    --ink2: #B5A88F;
+    --sage: #8FA06A;
+    --brick: #D97A54;
+    --bd: #443A2C;
+    --amber: #D9A94A;
+    --moon: #7C8DB5;
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surf: var(--surf);
+  --color-ink: var(--ink);
+  --color-ink2: var(--ink2);
+  --color-sage: var(--sage);
+  --color-brick: var(--brick);
+  --color-bd: var(--bd);
+  --color-amber: var(--amber);
+  --color-moon: var(--moon);
+  --font-serif: var(--font-fraunces), serif;
+  --font-sans: var(--font-inter), sans-serif;
+}
+
+/* Colorblind-safe accent swap: distinguishable sage/brick replacement under
+   deuteranopia/protanopia. Icons remain the primary signal either way. */
+:root[data-colorblind="true"] {
+  --sage: #3B7EA1;
+  --brick: #C77A1F;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 20% 15%, rgba(181, 80, 47, 0.04) 0, transparent 45%),
+    radial-gradient(circle at 85% 75%, rgba(107, 122, 79, 0.05) 0, transparent 40%),
+    var(--bg);
+  min-height: 100vh;
+}
+
+h1 {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 25px;
+  margin: 0 0 4px;
+}
+
+h2 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 15px;
+  margin: 22px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.sub {
+  font-size: 13px;
+  color: var(--ink2);
+  margin: 0 0 18px;
+}
+
+.card {
+  background: var(--surf);
+  border: 0.5px solid var(--bd);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+button {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 9px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.12s ease;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+.btn-primary {
+  background: var(--sage);
+  color: var(--surf);
+  box-shadow: 0 3px 8px rgba(107, 122, 79, 0.28);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink2);
+  border: 0.5px solid var(--bd);
+}
+
+.btn-link {
+  font-size: 12px;
+  color: var(--brick);
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 36px;
+  border-radius: 8px;
+  border: 0.5px solid var(--bd);
+  background: var(--surf);
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--ink);
+  margin-bottom: 10px;
+  font-family: var(--font-sans);
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--ink2);
+  margin: 10px 0 5px;
+}
+
+.chip {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 0.5px solid var(--bd);
+  background: var(--surf);
+  color: var(--ink2);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chip.sel {
+  background: var(--sage);
+  color: var(--surf);
+  border-color: var(--sage);
+}
+
+.chip.off {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.chip.allergy {
+  background: var(--brick);
+  color: var(--surf);
+  border-color: var(--brick);
+}
+
+.tag {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--surf);
+  border: 0.5px solid var(--bd);
+  color: var(--ink2);
+  margin-right: 5px;
+  display: inline-block;
+  margin-bottom: 5px;
+}
+
+.tag b {
+  color: var(--ink);
+}
+
+.stat {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat.ok {
+  color: var(--sage);
+}
+
+.stat.low {
+  color: var(--amber);
+}
+
+.stat.need {
+  color: var(--brick);
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 0.5px solid var(--bd);
+  font-size: 13px;
+  gap: 10px;
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.divider-trail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 18px 0;
+  color: var(--bd);
+}
+
+.divider-trail::before,
+.divider-trail::after {
+  content: "";
+  flex: 1;
+  height: 0;
+  border-top: 1.5px dotted var(--bd);
+}
+
+.stitch {
+  border-style: dashed !important;
+  border-width: 1.2px !important;
+}
+
+.corner-fold {
+  position: relative;
+  overflow: hidden;
+}
+
+.corner-fold::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 22px 22px 0;
+  border-color: transparent var(--bg) transparent transparent;
+}
+
+.stamp {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--sage);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-12deg);
+  color: var(--sage);
+  opacity: 0.8;
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--surf);
+  font-size: 13px;
+  padding: 10px 18px;
+  border-radius: 20px;
+  z-index: 60;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
