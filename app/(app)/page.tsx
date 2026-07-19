@@ -28,7 +28,7 @@ export default function DashboardPage() {
         <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <span className="sub" style={{ margin: 0 }}>Complete your profile for better suggestions.</span>
           <div style={{ display: "flex", gap: 8 }}>
-            <Link href="/onboarding/persona" className="btn-link">complete</Link>
+            <Link href="/profile" className="btn-link">complete</Link>
             <button className="btn-ghost" onClick={dismissProfileNudge}>dismiss</button>
           </div>
         </div>

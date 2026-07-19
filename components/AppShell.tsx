@@ -12,6 +12,7 @@ import {
   Users,
   Sprout,
   LogOut,
+  UserRound,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { nextRouteFor } from "@/lib/store/routing";
@@ -23,6 +24,7 @@ const NAV = [
   { href: "/shopping-list", label: "Shopping list", icon: ShoppingCart },
   { href: "/history", label: "History", icon: History },
   { href: "/household", label: "Household", icon: Users },
+  { href: "/profile", label: "Profile", icon: UserRound },
 ];
 
 function navTarget(pathname: string) {
@@ -105,20 +107,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="mx-auto w-full max-w-[680px] flex-1 px-5 pb-24 pt-8 md:px-8">
-        {mode === "demo" && state.profiles.length > 1 && (
-          <div className="mb-4 flex items-center justify-end gap-2 text-[11px]" style={{ color: "var(--ink2)" }}>
-            viewing as
-            <select
-              value={currentProfile?.id}
-              onChange={(e) => switchProfile(e.target.value)}
-              style={{ width: "auto", minHeight: 28, padding: "2px 8px", marginBottom: 0, fontSize: 11 }}
-            >
-              {state.profiles.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="mb-4 flex items-center justify-between gap-2 text-[11px]" style={{ color: "var(--ink2)" }}>
+          <Link href="/profile" className="flex items-center gap-1" style={{ color: "var(--ink2)" }}>
+            <UserRound size={13} /> {currentProfile?.name}&apos;s profile
+          </Link>
+          {mode === "demo" && state.profiles.length > 1 && (
+            <div className="flex items-center gap-2">
+              viewing as
+              <select
+                value={currentProfile?.id}
+                onChange={(e) => switchProfile(e.target.value)}
+                style={{ width: "auto", minHeight: 28, padding: "2px 8px", marginBottom: 0, fontSize: 11 }}
+              >
+                {state.profiles.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
         {children}
       </main>
 
