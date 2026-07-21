@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { nextRouteFor } from "@/lib/store/routing";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { Watercolor } from "@/components/Watercolor";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,10 +38,15 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[420px] flex-col justify-center px-6">
-      <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 14, color: "var(--sage)", textAlign: "center", margin: "0 0 20px" }}>
-        kitchen companion
+      <div className="relative mx-auto mb-1 h-16 w-24 overflow-hidden" aria-hidden>
+        <Watercolor color="var(--sage)" size={90} variant={0} style={{ top: -14, left: 6 }} />
+        <Watercolor color="var(--amber-soft)" size={64} variant={2} style={{ top: 4, left: 40, opacity: 0.4 }} />
+      </div>
+      <h1 style={{ textAlign: "center", fontSize: 40 }}>Larder</h1>
+      <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 16, color: "var(--sage-deep)", textAlign: "center", margin: "0 0 22px" }}>
+        a quiet, well-kept kitchen
       </p>
-      <h1 style={{ textAlign: "center" }}>Welcome back</h1>
+      <h2 style={{ textAlign: "center", justifyContent: "center", fontSize: 18 }}>Welcome back</h2>
       <p className="sub" style={{ textAlign: "center" }}>Sign in to see today&apos;s meals</p>
 
       {!isSupabaseConfigured && (

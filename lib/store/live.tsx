@@ -5,6 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { StoreContext, freshState, type Ctx, type State } from "@/lib/store/context";
 import type {
+  DishRatingValue,
   FeedbackEntry,
   InventoryItem,
   MealSlot,
@@ -14,7 +15,7 @@ import type {
   WeeklyScheduleEntry,
 } from "@/lib/types";
 import { computeOutputMode, filterAndRankRecipes, toPersonConstraints } from "@/lib/engine/constraints";
-import { crossCheckIngredients, deductInventory, scaleIngredients } from "@/lib/engine/inventory";
+import { crossCheckIngredients, deductInventory, restoreInventory, scaleIngredients } from "@/lib/engine/inventory";
 
 /** Baseline = stated typical meals + recipes a profile said they'd repeat. */
 function computeBaselineIds(s: State): Set<string> {
@@ -36,6 +37,7 @@ const REALTIME_TABLES = [
   "health_conditions",
   "vitamin_mineral_anomalies",
   "likes_dislikes",
+  "dish_ratings",
   "recipes",
   "meal_slots",
   "meal_slot_presence",
@@ -88,6 +90,7 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
         healthRes,
         vmaRes,
         likesRes,
+        dishRatingsRes,
         recipesRes,
         mealSlotsRes,
         presenceRes,
@@ -106,6 +109,7 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
         supabase.from("health_conditions").select("*"),
         supabase.from("vitamin_mineral_anomalies").select("*"),
         supabase.from("likes_dislikes").select("*"),
+        supabase.from("dish_ratings").select("*"),
         supabase.from("recipes").select("*"),
         supabase.from("meal_slots").select("*"),
         supabase.from("meal_slot_presence").select("*"),
@@ -127,6 +131,7 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
         healthConditions: healthRes.data ?? [],
         vitaminAnomalies: vmaRes.data ?? [],
         likesDislikes: likesRes.data ?? [],
+        dishRatings: dishRatingsRes.data ?? [],
         recipes: recipesRes.data ?? [],
         mealSlots: mealSlotsRes.data ?? [],
         presence: presenceRes.data ?? [],
@@ -356,6 +361,16 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
     [supabase, refetchAll]
   );
 
+  const rateDish = useCallback(
+    async (recipeId: string, rating: DishRatingValue) => {
+      const userId = userIdRef.current;
+      if (!userId) return;
+      await supabase.from("dish_ratings").upsert({ profile_id: userId, recipe_id: recipeId, rating }, { onConflict: "profile_id,recipe_id" });
+      await refetchAll(userId);
+    },
+    [supabase, refetchAll]
+  );
+
   const saveTypicalMeals = useCallback(
     async (entries: { mealType: MealSlot["meal_type"]; name: string }[]) => {
       const userId = userIdRef.current;
@@ -469,7 +484,7 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
         .map((p) => state.profiles.find((pr) => pr.id === p.profileId))
         .filter((p): p is Profile => Boolean(p))
         .map((p) => toPersonConstraints(p, state.allergies, state.avoidances));
-      return filterAndRankRecipes(state.recipes, people, { ...opts, baselineIds: computeBaselineIds(state) });
+      return filterAndRankRecipes(state.recipes, people, { ...opts, baselineIds: computeBaselineIds(state), dishRatings: state.dishRatings });
     },
     [getEffectivePresence, state]
   );
@@ -481,16 +496,20 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
         .map((p) => state.profiles.find((pr) => pr.id === p.profileId))
         .filter((p): p is Profile => Boolean(p))
         .map((p) => toPersonConstraints(p, state.allergies, state.avoidances));
-      return filterAndRankRecipes(state.recipes, people, { ...opts, baselineIds: computeBaselineIds(state) });
+      return filterAndRankRecipes(state.recipes, people, { ...opts, baselineIds: computeBaselineIds(state), dishRatings: state.dishRatings });
     },
     [getEffectivePresenceForDate, state]
   );
 
+  // Rule (build brief #6 / flowchart 3 & 18): deduct at confirmation, and
+  // snapshot exactly what was deducted onto the slot so a swap can reverse
+  // it precisely rather than recomputing from (possibly changed) presence.
   const acceptSuggestion = useCallback(
     async (mealSlotId: string, recipeId: string) => {
       const userId = userIdRef.current;
       const recipe = state.recipes.find((r) => r.id === recipeId);
       if (!recipe || !userId) return;
+      const slot = state.mealSlots.find((m) => m.id === mealSlotId);
       const effective = getEffectivePresence(mealSlotId).filter((p) => p.present);
       const people = effective
         .map((p) => state.profiles.find((pr) => pr.id === p.profileId))
@@ -500,11 +519,29 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
         veg: recipe.veg,
         moods: [],
         baselineIds: computeBaselineIds(state),
+        dishRatings: state.dishRatings,
       });
       const outputMode = ranked ? computeOutputMode(people, ranked) : "shared";
+
+      const scaled = scaleIngredients(recipe.base_ingredients, recipe.portion_base, effective.length || recipe.portion_base);
+      const restored = slot?.deducted_ingredients ? restoreInventory(state.inventory, slot.deducted_ingredients) : state.inventory;
+      const newInventory = deductInventory(restored, scaled);
+      for (const item of newInventory) {
+        const before = state.inventory.find((i) => i.id === item.id);
+        if (before && before.quantity !== item.quantity) {
+          await supabase.from("inventory_items").update({ quantity: item.quantity }).eq("id", item.id);
+        }
+      }
+
       await supabase
         .from("meal_slots")
-        .update({ recipe_id: recipeId, status: "finalized", output_mode: outputMode, is_new_item_suggestion: ranked?.isNewItem ?? false })
+        .update({
+          recipe_id: recipeId,
+          status: "finalized",
+          output_mode: outputMode,
+          is_new_item_suggestion: ranked?.isNewItem ?? false,
+          deducted_ingredients: scaled,
+        })
         .eq("id", mealSlotId);
       if (ranked && ranked.deviatesFor.length) {
         await supabase.from("deviation_log_entries").insert(
@@ -521,13 +558,28 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
     [supabase, refetchAll, state, getEffectivePresence]
   );
 
+  // Rule (flowchart 25): cancelling to ordered-in reverses exactly what
+  // was deducted for this slot, if anything was.
   const markOrderedIn = useCallback(
     async (mealSlotId: string) => {
       const userId = userIdRef.current;
-      await supabase.from("meal_slots").update({ status: "ordered_in", recipe_id: null, output_mode: null }).eq("id", mealSlotId);
+      const slot = state.mealSlots.find((m) => m.id === mealSlotId);
+      if (slot?.deducted_ingredients) {
+        const restored = restoreInventory(state.inventory, slot.deducted_ingredients);
+        for (const item of restored) {
+          const before = state.inventory.find((i) => i.id === item.id);
+          if (before && before.quantity !== item.quantity) {
+            await supabase.from("inventory_items").update({ quantity: item.quantity }).eq("id", item.id);
+          }
+        }
+      }
+      await supabase
+        .from("meal_slots")
+        .update({ status: "ordered_in", recipe_id: null, output_mode: null, deducted_ingredients: null })
+        .eq("id", mealSlotId);
       if (userId) await refetchAll(userId);
     },
-    [supabase, refetchAll]
+    [supabase, refetchAll, state]
   );
 
   const ensureMealSlot = useCallback(
@@ -545,6 +597,8 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
         recipe_id: null,
         locked: false,
         is_new_item_suggestion: false,
+        deducted_ingredients: null,
+        cooked_at: null,
       };
       setState((s) => ({ ...s, mealSlots: [...s.mealSlots, created] }));
       if (homeId) {
@@ -579,32 +633,33 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
     [state.feedback, state.mealSlots]
   );
 
+  // Flowchart 3 & 11: a distinct, later event from confirmation — inventory
+  // already moved at confirm time, so this only records a cooked timestamp
+  // and checks the first-time feedback gate.
   const markCooked = useCallback(
     (mealSlotId: string) => {
       const slot = state.mealSlots.find((m) => m.id === mealSlotId);
       if (!slot || !slot.recipe_id) return { needsFeedback: false };
       const recipe = state.recipes.find((r) => r.id === slot.recipe_id);
       if (!recipe) return { needsFeedback: false };
-      const presentCount = getEffectivePresence(mealSlotId).filter((p) => p.present).length;
-      const scaled = scaleIngredients(recipe.base_ingredients, recipe.portion_base, presentCount || recipe.portion_base);
-      const previousInventory = state.inventory;
-      const newInventory = deductInventory(previousInventory, scaled);
-      setState((s) => ({ ...s, inventory: newInventory }));
 
-      (async () => {
-        for (const item of newInventory) {
-          const before = previousInventory.find((i) => i.id === item.id);
-          if (before && before.quantity !== item.quantity) {
-            await supabase.from("inventory_items").update({ quantity: item.quantity }).eq("id", item.id);
-          }
-        }
-        if (userIdRef.current) await refetchAll(userIdRef.current);
-      })();
+      const cookedAt = new Date().toISOString();
+      setState((s) => ({
+        ...s,
+        mealSlots: s.mealSlots.map((m) => (m.id === mealSlotId ? { ...m, cooked_at: cookedAt } : m)),
+      }));
+      supabase
+        .from("meal_slots")
+        .update({ cooked_at: cookedAt })
+        .eq("id", mealSlotId)
+        .then(({ error }) => {
+          if (error && userIdRef.current) refetchAll(userIdRef.current);
+        });
 
       const alreadySeen = currentProfile ? hasFeedback(currentProfile.id, recipe.id) : true;
       return { needsFeedback: !alreadySeen };
     },
-    [state, getEffectivePresence, currentProfile, hasFeedback, supabase, refetchAll]
+    [state.mealSlots, state.recipes, currentProfile, hasFeedback, supabase, refetchAll]
   );
 
   const submitFeedback = useCallback(
@@ -703,7 +758,7 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
           }
           const veg = d % 3 !== 2;
           const people = state.profiles.map((p) => toPersonConstraints(p, state.allergies, state.avoidances));
-          const ranked = filterAndRankRecipes(state.recipes, people, { veg, moods: [], baselineIds });
+          const ranked = filterAndRankRecipes(state.recipes, people, { veg, moods: [], baselineIds, dishRatings: state.dishRatings });
           const fresh = ranked.filter((r) => !recentlyUsed.slice(-3).includes(r.recipe.id));
           const pool = fresh.length ? fresh : ranked;
           const pick = pool[cursor % Math.max(1, pool.length)] ?? ranked[0];
@@ -871,6 +926,7 @@ export function LiveStoreProvider({ children }: { children: React.ReactNode }) {
     saveHealthConditions,
     saveVitaminAnomalies,
     saveLikesDislikes,
+    rateDish,
     saveTypicalMeals,
     setAccessibility,
     dismissProfileNudge,

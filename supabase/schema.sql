@@ -23,6 +23,11 @@ create table profiles (
   age int,
   weight numeric,
   goal text,
+  -- flowchart 2 (step 3b) / 24: nutrition needs used by portion sizing.
+  -- Scoped down from the full gram-precise portion-multiplier engine —
+  -- captured here, applied today via presence-based scaling, not yet a
+  -- per-person nutrition-target-driven multiplier.
+  protein_target_g numeric,
   engagement_style text check (engagement_style in ('planner', 'quick')),
   accessibility jsonb not null default '{"colorblind_safe": false, "larger_text": false}'::jsonb,
   -- true once this profile has finished (or explicitly skipped through)
@@ -100,6 +105,18 @@ create table recipes (
   created_at timestamptz not null default now()
 );
 
+-- Whole-dish swipe signal (flowchart 14/22) — distinct from likes_dislikes,
+-- which is ingredient/flavor-level. One rating per person per recipe;
+-- re-swiping/re-rating overwrites via upsert.
+create table dish_ratings (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references profiles (id) on delete cascade,
+  recipe_id uuid not null references recipes (id) on delete cascade,
+  rating text not null check (rating in ('disliked', 'liked', 'loved')),
+  created_at timestamptz not null default now(),
+  unique (profile_id, recipe_id)
+);
+
 create table meal_slots (
   id uuid primary key default gen_random_uuid(),
   home_id uuid not null references homes (id) on delete cascade,
@@ -113,6 +130,16 @@ create table meal_slots (
   -- pick rather than drawn from the household's baseline/likes history
   -- (PRD 7.3.21 / data model sec 9).
   is_new_item_suggestion boolean not null default false,
+  -- exact ingredient quantities already subtracted from inventory for the
+  -- slot's current recipe_id (deduction happens at confirmation, not at
+  -- "cooked"). Null when nothing has been deducted yet. Swapping the dish
+  -- or cancelling to ordered-in reverses exactly this snapshot rather than
+  -- recomputing from current presence, which could drift.
+  deducted_ingredients jsonb,
+  -- set when "mark cooked" is tapped — a separate, later event from
+  -- confirmation that no longer touches inventory, only the first-time
+  -- feedback prompt.
+  cooked_at timestamptz,
   created_at timestamptz not null default now(),
   unique (home_id, date, meal_type)
 );
@@ -231,6 +258,7 @@ alter table weekly_schedule enable row level security;
 alter table health_conditions enable row level security;
 alter table vitamin_mineral_anomalies enable row level security;
 alter table likes_dislikes enable row level security;
+alter table dish_ratings enable row level security;
 alter table recipes enable row level security;
 alter table meal_slots enable row level security;
 alter table meal_slot_presence enable row level security;
@@ -284,6 +312,11 @@ create policy "weekly_schedule: write self" on weekly_schedule
 create policy "likes_dislikes: read household" on likes_dislikes
   for select using (profile_home_id(profile_id) = my_home_id());
 create policy "likes_dislikes: write self" on likes_dislikes
+  for all using (profile_id = auth.uid()) with check (profile_id = auth.uid());
+
+create policy "dish_ratings: read household" on dish_ratings
+  for select using (profile_home_id(profile_id) = my_home_id());
+create policy "dish_ratings: write self" on dish_ratings
   for all using (profile_id = auth.uid()) with check (profile_id = auth.uid());
 
 -- sensitive persona tables: private by default. Own rows always visible to

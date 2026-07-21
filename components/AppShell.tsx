@@ -10,12 +10,12 @@ import {
   ShoppingCart,
   History,
   Users,
-  Sprout,
   LogOut,
   UserRound,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { nextRouteFor } from "@/lib/store/routing";
+import { Watercolor } from "@/components/Watercolor";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: HomeIcon },
@@ -64,13 +64,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="mx-auto flex min-h-screen max-w-[980px]">
       <aside className="hidden w-[196px] shrink-0 px-4 py-7 md:block">
         <div className="mb-7 flex items-center gap-2.5 pl-1">
-          <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px]" style={{ background: "var(--sage)" }}>
-            <Sprout size={18} color="var(--surf)" />
+          <div className="relative flex h-[36px] w-[36px] shrink-0 items-center justify-center overflow-hidden">
+            <Watercolor color="var(--sage)" size={54} variant={1} style={{ top: -9, left: -9 }} />
           </div>
-          <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 14, color: "var(--ink)", lineHeight: 1.2 }}>
-            Kitchen
-            <br />
-            companion
+          <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 18, color: "var(--ink)", lineHeight: 1.1 }}>
+            Larder
           </div>
         </div>
         <nav className="flex flex-col gap-0.5">
@@ -141,7 +139,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               key={item.href}
               href={item.href}
               className="flex flex-1 flex-col items-center gap-1 rounded-[10px] py-1 text-[10px] font-medium"
-              style={{ color: sel ? "var(--sage)" : "var(--ink2)" }}
+              style={{ color: sel ? "var(--sage-deep)" : "var(--ink2)" }}
             >
               <Icon size={20} />
               {item.label.split(" ")[0]}

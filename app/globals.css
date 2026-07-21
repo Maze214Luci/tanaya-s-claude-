@@ -1,42 +1,57 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Larder design system — linen & buttermilk base, sage + marigold
+   accents, walnut ink text. Same custom-property names as before
+   so component files don't need touching — only the values change.
+   ============================================================ */
+
 :root {
-  --bg: #F5EFE4;
-  --surf: #FDFBF6;
-  --ink: #33291F;
-  --ink2: #7A6C58;
-  --sage: #6B7A4F;
-  --brick: #B5502F;
-  --bd: #E3D8C5;
-  --amber: #A87B1D;
-  --moon: #4C5B7A;
-  --shadow: 0 2px 4px rgba(51, 41, 31, 0.06), 0 8px 20px rgba(51, 41, 31, 0.06);
+  --bg: #F7F1E6;       /* linen — app background */
+  --surf: #FFFFFF;      /* card/panel surface */
+  --buttermilk: #EFE3C8; /* soft highlight panels (nudges, callouts) */
+  --ink: #362F26;       /* walnut ink — body text */
+  --ink2: #6B6255;      /* ink soft — secondary text */
+  --sage: #7E9271;      /* primary accent, icons, dots */
+  --sage-deep: #4F5D46; /* buttons, links, active nav, text-on-light */
+  --brick: #B97A56;     /* clay — firm attention (allergy, out of stock) */
+  --amber: #C99A34;     /* marigold — gentle attention (expiring, low stock) */
+  --amber-soft: #E3C878;
+  --moon: #7D6B86;      /* dusty plum — fasting / third accent */
+  --bd: #DDD2BC;        /* line */
+  --shadow: 0 2px 4px rgba(54, 47, 38, 0.06), 0 8px 20px rgba(54, 47, 38, 0.07);
 }
 
 :root[data-theme="dark"] {
-  --bg: #211B14;
-  --surf: #2C2419;
-  --ink: #F0E8DB;
-  --ink2: #B5A88F;
-  --sage: #8FA06A;
-  --brick: #D97A54;
-  --bd: #443A2C;
-  --amber: #D9A94A;
-  --moon: #7C8DB5;
+  --bg: #241F17;
+  --surf: #2F281E;
+  --buttermilk: #3A3020;
+  --ink: #F2E9DA;
+  --ink2: #C2B6A0;
+  --sage: #93A681;
+  --sage-deep: #A9BE97;
+  --brick: #D39A76;
+  --amber: #D9AE4E;
+  --amber-soft: #B08A3A;
+  --moon: #A392AC;
+  --bd: #4A4130;
   --shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #211B14;
-    --surf: #2C2419;
-    --ink: #F0E8DB;
-    --ink2: #B5A88F;
-    --sage: #8FA06A;
-    --brick: #D97A54;
-    --bd: #443A2C;
-    --amber: #D9A94A;
-    --moon: #7C8DB5;
+    --bg: #241F17;
+    --surf: #2F281E;
+    --buttermilk: #3A3020;
+    --ink: #F2E9DA;
+    --ink2: #C2B6A0;
+    --sage: #93A681;
+    --sage-deep: #A9BE97;
+    --brick: #D39A76;
+    --amber: #D9AE4E;
+    --amber-soft: #B08A3A;
+    --moon: #A392AC;
+    --bd: #4A4130;
     --shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.3);
   }
 }
@@ -52,6 +67,7 @@
   --color-amber: var(--amber);
   --color-moon: var(--moon);
   --font-serif: var(--font-fraunces), serif;
+  --font-read: var(--font-lora), serif;
   --font-sans: var(--font-inter), sans-serif;
 }
 
@@ -59,6 +75,7 @@
    deuteranopia/protanopia. Icons remain the primary signal either way. */
 :root[data-colorblind="true"] {
   --sage: #3B7EA1;
+  --sage-deep: #2C5F7A;
   --brick: #C77A1F;
 }
 
@@ -73,34 +90,45 @@ body {
 
 body {
   margin: 0;
-  font-family: var(--font-sans);
+  font-family: var(--font-read);
   color: var(--ink);
+  line-height: 1.6;
   background:
-    radial-gradient(circle at 20% 15%, rgba(181, 80, 47, 0.04) 0, transparent 45%),
-    radial-gradient(circle at 85% 75%, rgba(107, 122, 79, 0.05) 0, transparent 40%),
+    radial-gradient(circle at 20% 15%, rgba(126, 146, 113, 0.05) 0, transparent 45%),
+    radial-gradient(circle at 85% 75%, rgba(201, 154, 52, 0.05) 0, transparent 40%),
     var(--bg);
   min-height: 100vh;
 }
 
 h1 {
   font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 500;
-  font-size: 25px;
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: -0.01em;
   margin: 0 0 4px;
 }
 
 h2 {
   font-family: var(--font-serif);
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: 500;
+  font-size: 16px;
   margin: 22px 0 10px;
   display: flex;
   align-items: center;
   gap: 7px;
 }
 
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sage-deep);
+  font-weight: 600;
+}
+
 .sub {
+  font-family: var(--font-read);
   font-size: 13px;
   color: var(--ink2);
   margin: 0 0 18px;
@@ -108,22 +136,30 @@ h2 {
 
 .card {
   background: var(--surf);
-  border: 0.5px solid var(--bd);
-  border-radius: 14px;
-  padding: 14px 16px;
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 16px 18px;
   margin-bottom: 12px;
   box-shadow: var(--shadow);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-highlight {
+  background: var(--buttermilk);
+  border-color: transparent;
 }
 
 button {
   font-family: var(--font-sans);
   font-size: 13px;
-  font-weight: 500;
-  border-radius: 9px;
-  padding: 10px 16px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 11px 22px;
   cursor: pointer;
   border: none;
+  letter-spacing: 0.01em;
   transition: transform 0.12s ease;
 }
 
@@ -132,26 +168,29 @@ button:active {
 }
 
 .btn-primary {
-  background: var(--sage);
+  background: var(--sage-deep);
   color: var(--surf);
-  box-shadow: 0 3px 8px rgba(107, 122, 79, 0.28);
+  box-shadow: 0 3px 8px rgba(79, 93, 70, 0.28);
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--ink2);
-  border: 0.5px solid var(--bd);
+  color: var(--sage-deep);
+  border: 1.5px solid var(--sage-deep);
 }
 
 .btn-link {
+  font-family: var(--font-sans);
   font-size: 12px;
-  color: var(--brick);
-  text-decoration: none;
-  font-weight: 500;
+  color: var(--sage-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
   cursor: pointer;
   background: none;
   border: none;
   padding: 0;
+  border-radius: 0;
 }
 
 input,
@@ -159,29 +198,46 @@ select,
 textarea {
   width: 100%;
   box-sizing: border-box;
-  min-height: 36px;
-  border-radius: 8px;
-  border: 0.5px solid var(--bd);
+  min-height: 40px;
+  border-radius: 999px;
+  border: 1.5px solid var(--bd);
   background: var(--surf);
-  padding: 8px 10px;
+  padding: 9px 18px;
   font-size: 14px;
   color: var(--ink);
   margin-bottom: 10px;
-  font-family: var(--font-sans);
+  font-family: var(--font-read);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink2);
+  font-style: italic;
+}
+
+textarea {
+  border-radius: 18px;
+  min-height: 80px;
 }
 
 label {
   display: block;
-  font-size: 12px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--ink2);
-  margin: 10px 0 5px;
+  font-weight: 600;
+  margin: 10px 0 6px;
 }
 
 .chip {
+  font-family: var(--font-sans);
   font-size: 12px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  border: 0.5px solid var(--bd);
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--bd);
   background: var(--surf);
   color: var(--ink2);
   cursor: pointer;
@@ -189,13 +245,13 @@ label {
   transition: transform 0.12s ease;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
 .chip.sel {
-  background: var(--sage);
+  background: var(--sage-deep);
   color: var(--surf);
-  border-color: var(--sage);
+  border-color: var(--sage-deep);
 }
 
 .chip.off {
@@ -210,14 +266,18 @@ label {
 }
 
 .tag {
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 20px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 13px;
+  border-radius: 999px;
   background: var(--surf);
-  border: 0.5px solid var(--bd);
+  border: 1px solid var(--bd);
   color: var(--ink2);
   margin-right: 5px;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 5px;
 }
 
@@ -225,15 +285,24 @@ label {
   color: var(--ink);
 }
 
+.tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 .stat {
+  font-family: var(--font-sans);
   font-size: 11px;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
 .stat.ok {
-  color: var(--sage);
+  color: var(--sage-deep);
 }
 
 .stat.low {
@@ -248,8 +317,8 @@ label {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 9px 0;
-  border-bottom: 0.5px solid var(--bd);
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--bd);
   font-size: 13px;
   gap: 10px;
 }
@@ -303,13 +372,14 @@ label {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1.5px dashed var(--sage);
+  border: 1.5px dashed var(--sage-deep);
   display: flex;
   align-items: center;
   justify-content: center;
   transform: rotate(-12deg);
-  color: var(--sage);
+  color: var(--sage-deep);
   opacity: 0.8;
+  z-index: 1;
 }
 
 .toast {
@@ -318,10 +388,12 @@ label {
   left: 50%;
   transform: translateX(-50%);
   background: var(--ink);
-  color: var(--surf);
+  color: var(--bg);
+  font-family: var(--font-sans);
   font-size: 13px;
-  padding: 10px 18px;
-  border-radius: 20px;
+  font-weight: 500;
+  padding: 11px 20px;
+  border-radius: 999px;
   z-index: 60;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }

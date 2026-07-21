@@ -1,6 +1,8 @@
 import type {
   Allergy,
   Avoidance,
+  DishRating,
+  DishRatingValue,
   MoodTag,
   OutputMode,
   Profile,
@@ -43,7 +45,7 @@ export interface SuggestionResult {
 export function filterAndRankRecipes(
   recipes: Recipe[],
   people: PersonConstraints[],
-  opts: { veg: boolean; moods: MoodTag[]; baselineIds?: Set<string> }
+  opts: { veg: boolean; moods: MoodTag[]; baselineIds?: Set<string>; dishRatings?: DishRating[] }
 ): SuggestionResult[] {
   const candidates = recipes.filter((r) => r.veg === opts.veg);
   const moodFiltered = opts.moods.length
@@ -58,6 +60,8 @@ export function filterAndRankRecipes(
   });
 
   const baselineIds = opts.baselineIds ?? new Set<string>();
+  const ratings = opts.dishRatings ?? [];
+  const recipeById = new Map(recipes.map((r) => [r.id, r]));
 
   const results: SuggestionResult[] = hardSafe.map((recipe) => {
     const ingredientNames = recipe.base_ingredients.map((i) => i.name.toLowerCase());
@@ -73,10 +77,57 @@ export function filterAndRankRecipes(
     return { recipe, deviatesFor, isNewItem };
   });
 
-  // Recipes with no deviations rank first; stable otherwise.
-  results.sort((a, b) => a.deviatesFor.length - b.deviatesFor.length);
+  // Rule (flowchart 16/22): rank by constraint compliance first, then by
+  // the present people's whole-dish preference signal — direct swipe
+  // ratings when available, otherwise a cold-start estimate from mood-tag
+  // overlap with dishes they've already rated positively.
+  const scoreCache = new Map<string, number>();
+  const scoreOf = (recipe: Recipe) => {
+    const cached = scoreCache.get(recipe.id);
+    if (cached !== undefined) return cached;
+    const score = preferenceScore(recipe, people, ratings, recipeById);
+    scoreCache.set(recipe.id, score);
+    return score;
+  };
+
+  results.sort((a, b) => {
+    if (a.deviatesFor.length !== b.deviatesFor.length) return a.deviatesFor.length - b.deviatesFor.length;
+    return scoreOf(b.recipe) - scoreOf(a.recipe);
+  });
 
   return baselineIds.size > 0 ? interleaveVariety(results) : results;
+}
+
+const RATING_SCORE: Record<DishRatingValue, number> = { loved: 2, liked: 1, disliked: -2 };
+
+function preferenceScore(
+  recipe: Recipe,
+  people: PersonConstraints[],
+  ratings: DishRating[],
+  recipeById: Map<string, Recipe>
+): number {
+  if (!people.length || !ratings.length) return 0;
+  let total = 0;
+  for (const p of people) {
+    const direct = ratings.find((r) => r.profile_id === p.profile.id && r.recipe_id === recipe.id);
+    if (direct) {
+      total += RATING_SCORE[direct.rating];
+      continue;
+    }
+    // Cold start: this person hasn't rated this exact dish, so borrow a
+    // partial signal from mood-tag overlap with dishes they HAVE rated
+    // positively — a proxy for cuisine/ingredient-pattern similarity.
+    const positive = ratings.filter((r) => r.profile_id === p.profile.id && r.rating !== "disliked");
+    let coldScore = 0;
+    for (const r of positive) {
+      const theirRecipe = recipeById.get(r.recipe_id);
+      if (!theirRecipe) continue;
+      const overlap = recipe.moods.filter((m) => theirRecipe.moods.includes(m)).length;
+      if (overlap > 0) coldScore += (r.rating === "loved" ? 0.3 : 0.15) * overlap;
+    }
+    total += Math.min(coldScore, 1.5);
+  }
+  return total / people.length;
 }
 
 /**

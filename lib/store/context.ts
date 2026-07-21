@@ -5,6 +5,8 @@ import type {
   Allergy,
   Avoidance,
   DeviationLogEntry,
+  DishRating,
+  DishRatingValue,
   FeedbackEntry,
   HealthCondition,
   Home,
@@ -35,6 +37,7 @@ export interface State {
   healthConditions: HealthCondition[];
   vitaminAnomalies: VitaminMineralAnomaly[];
   likesDislikes: LikeDislike[];
+  dishRatings: DishRating[];
   recipes: Recipe[];
   mealSlots: MealSlot[];
   presence: MealSlotPresence[];
@@ -58,6 +61,7 @@ export function freshState(): State {
     healthConditions: [],
     vitaminAnomalies: [],
     likesDislikes: [],
+    dishRatings: [],
     recipes: [],
     mealSlots: [],
     presence: [],
@@ -106,6 +110,9 @@ export interface Ctx {
     entries: { nutrient: string; status: "deficient" | "elevated"; is_private: boolean }[]
   ) => void;
   saveLikesDislikes: (entries: { term: string; sentiment: "like" | "dislike" }[]) => void;
+  /** Whole-dish swipe signal (flowchart 14) — upserts one rating per
+   * profile per recipe; re-swiping overwrites. */
+  rateDish: (recipeId: string, rating: DishRatingValue) => void;
   /** Persists the household's stated typical meals as real baseline recipe
    * stubs (is_baseline_item = true) so the suggestion engine can query them
    * — not just strings on the profile (build-flows prompt, step 8). */

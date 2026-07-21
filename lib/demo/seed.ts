@@ -47,6 +47,7 @@ export const seedProfiles: Profile[] = [
     age: 29,
     weight: 62,
     goal: "PCOS management",
+    protein_target_g: 70,
     engagement_style: "planner",
     accessibility: { colorblind_safe: false, larger_text: false },
     onboarded: true,
@@ -61,6 +62,7 @@ export const seedProfiles: Profile[] = [
     age: 31,
     weight: 78,
     goal: "Post-workout recovery",
+    protein_target_g: 110,
     engagement_style: "quick",
     accessibility: { colorblind_safe: true, larger_text: false },
     onboarded: true,
@@ -228,9 +230,9 @@ export const seedRecipes: Recipe[] = rawSeedRecipes.map((r) => ({
 }));
 
 export const seedMealSlots: MealSlot[] = [
-  { id: "ms-breakfast-0", home_id: HOME_ID, date: todayISO(0), meal_type: "breakfast", status: "finalized", output_mode: "shared", recipe_id: "r-poha", locked: false, is_new_item_suggestion: false },
-  { id: "ms-lunch-0", home_id: HOME_ID, date: todayISO(0), meal_type: "lunch", status: "unplanned", output_mode: null, recipe_id: null, locked: false, is_new_item_suggestion: false },
-  { id: "ms-dinner-0", home_id: HOME_ID, date: todayISO(0), meal_type: "dinner", status: "finalized", output_mode: "shared", recipe_id: "r-paneer-bowl", locked: false, is_new_item_suggestion: false },
+  { id: "ms-breakfast-0", home_id: HOME_ID, date: todayISO(0), meal_type: "breakfast", status: "finalized", output_mode: "shared", recipe_id: "r-poha", locked: false, is_new_item_suggestion: false, deducted_ingredients: null, cooked_at: null },
+  { id: "ms-lunch-0", home_id: HOME_ID, date: todayISO(0), meal_type: "lunch", status: "unplanned", output_mode: null, recipe_id: null, locked: false, is_new_item_suggestion: false, deducted_ingredients: null, cooked_at: null },
+  { id: "ms-dinner-0", home_id: HOME_ID, date: todayISO(0), meal_type: "dinner", status: "finalized", output_mode: "shared", recipe_id: "r-paneer-bowl", locked: false, is_new_item_suggestion: false, deducted_ingredients: null, cooked_at: null },
 ];
 
 export const seedPresence: MealSlotPresence[] = [

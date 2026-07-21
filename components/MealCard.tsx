@@ -12,6 +12,7 @@ import {
   Plane,
 } from "lucide-react";
 import { useStore, MOOD_CONFLICT_MAP } from "@/lib/store";
+import { Watercolor } from "@/components/Watercolor";
 import type { MealSlot, MoodTag } from "@/lib/types";
 
 const MOODS: MoodTag[] = ["homely", "light", "new", "cold", "warm", "sweet", "spicy"];
@@ -79,7 +80,7 @@ export function MealCard({ mealType }: { mealType: MealSlot["meal_type"] }) {
   function pick(recipeId: string) {
     const s = ensureMealSlot(todayISO, mealType);
     acceptSuggestion(s.id, recipeId);
-    toast("Added to today's plan");
+    toast("Added to today's plan — inventory updated");
   }
 
   function orderIn() {
@@ -90,9 +91,12 @@ export function MealCard({ mealType }: { mealType: MealSlot["meal_type"] }) {
 
   return (
     <div
-      className={finalized ? "corner-fold" : ""}
-      style={{ background: "var(--surf)", border: "0.5px solid var(--bd)", borderRadius: 14, padding: 14, position: "relative", boxShadow: "var(--shadow)" }}
+      style={{ background: "var(--surf)", border: "1px solid var(--bd)", borderRadius: 8, padding: 16, position: "relative", overflow: "hidden", boxShadow: "var(--shadow)" }}
     >
+      {finalized && (
+        <Watercolor color="var(--sage)" size={110} variant={mealType === "breakfast" ? 0 : mealType === "lunch" ? 2 : 4} style={{ top: -30, right: -30 }} />
+      )}
+      <div style={{ position: "relative" }}>
       {finalized && (
         <div className="stamp">
           <Check size={15} />
@@ -226,6 +230,7 @@ export function MealCard({ mealType }: { mealType: MealSlot["meal_type"] }) {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

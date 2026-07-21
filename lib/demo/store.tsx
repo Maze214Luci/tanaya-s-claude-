@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type {
+  DishRatingValue,
   FeedbackEntry,
   InventoryItem,
   MealSlot,
@@ -21,7 +22,7 @@ import {
   toPersonConstraints,
   type SuggestionResult,
 } from "@/lib/engine/constraints";
-import { crossCheckIngredients, deductInventory, scaleIngredients } from "@/lib/engine/inventory";
+import { crossCheckIngredients, deductInventory, restoreInventory, scaleIngredients } from "@/lib/engine/inventory";
 
 const STORAGE_KEY = "kitchen-companion-demo-v1";
 
@@ -36,6 +37,7 @@ function seededState(): State {
     healthConditions: [],
     vitaminAnomalies: [],
     likesDislikes: seed.seedLikesDislikes,
+    dishRatings: [],
     recipes: seed.seedRecipes,
     mealSlots: seed.seedMealSlots,
     presence: seed.seedPresence,
@@ -145,6 +147,7 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
           age: null,
           weight: null,
           goal: null,
+          protein_target_g: null,
           engagement_style: null,
           accessibility: { colorblind_safe: false, larger_text: false },
           onboarded: false,
@@ -231,6 +234,22 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
         ...entries.map((e) => ({ id: uid("ld"), profile_id: s.currentProfileId!, ...e, source: "seed" as const })),
       ],
     }));
+  }, []);
+
+  const rateDish = useCallback((recipeId: string, rating: DishRatingValue) => {
+    setState((s) => {
+      const existing = s.dishRatings.find((d) => d.profile_id === s.currentProfileId && d.recipe_id === recipeId);
+      if (existing) {
+        return { ...s, dishRatings: s.dishRatings.map((d) => (d.id === existing.id ? { ...d, rating } : d)) };
+      }
+      return {
+        ...s,
+        dishRatings: [
+          ...s.dishRatings,
+          { id: uid("dr"), profile_id: s.currentProfileId!, recipe_id: recipeId, rating, created_at: new Date().toISOString() },
+        ],
+      };
+    });
   }, []);
 
   // build-flows prompt step 8: typical meals become real, queryable
@@ -340,6 +359,7 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
         veg: opts.veg,
         moods: opts.moods,
         baselineIds: computeBaselineIds(state),
+        dishRatings: state.dishRatings,
       });
     },
     [getEffectivePresence, state]
@@ -364,6 +384,7 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
         veg: opts.veg,
         moods: opts.moods,
         baselineIds: computeBaselineIds(state),
+        dishRatings: state.dishRatings,
       });
     },
     [getEffectivePresenceForDate, state]
@@ -387,6 +408,9 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  // Rule (build brief #6 / flowchart 3 & 18): inventory deducts at
+  // confirmation, using the exact scaled ingredient list snapshotted onto
+  // the slot so a later swap or cancellation can reverse precisely.
   const acceptSuggestion = useCallback(
     (mealSlotId: string, recipeId: string) => {
       const recipe = state.recipes.find((r) => r.id === recipeId);
@@ -400,31 +424,51 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
         veg: recipe.veg,
         moods: [],
         baselineIds: computeBaselineIds(state),
+        dishRatings: state.dishRatings,
       });
       const outputMode = ranked ? computeOutputMode(people, ranked) : "shared";
       if (ranked) logDeviationsForChoice(mealSlotId, ranked);
 
-      setState((s) => ({
-        ...s,
-        mealSlots: s.mealSlots.map((m) =>
-          m.id === mealSlotId
-            ? { ...m, recipe_id: recipeId, status: "finalized", output_mode: outputMode, is_new_item_suggestion: ranked?.isNewItem ?? false }
-            : m
-        ),
-      }));
+      const scaled = scaleIngredients(recipe.base_ingredients, recipe.portion_base, effective.length || recipe.portion_base);
+
+      setState((s) => {
+        const existing = s.mealSlots.find((m) => m.id === mealSlotId);
+        const restored = existing?.deducted_ingredients ? restoreInventory(s.inventory, existing.deducted_ingredients) : s.inventory;
+        return {
+          ...s,
+          inventory: deductInventory(restored, scaled),
+          mealSlots: s.mealSlots.map((m) =>
+            m.id === mealSlotId
+              ? {
+                  ...m,
+                  recipe_id: recipeId,
+                  status: "finalized",
+                  output_mode: outputMode,
+                  is_new_item_suggestion: ranked?.isNewItem ?? false,
+                  deducted_ingredients: scaled,
+                }
+              : m
+          ),
+        };
+      });
     },
     [state, getEffectivePresence, logDeviationsForChoice]
   );
 
-  // Rule (brief #5): ordered-in skips recipe generation + inventory
-  // deduction entirely, but still resolves the slot and logs it.
+  // Rule (brief #5 / flowchart 25): ordered-in skips recipe generation
+  // entirely and reverses any deduction already made for this slot.
   const markOrderedIn = useCallback((mealSlotId: string) => {
-    setState((s) => ({
-      ...s,
-      mealSlots: s.mealSlots.map((m) =>
-        m.id === mealSlotId ? { ...m, status: "ordered_in", recipe_id: null, output_mode: null } : m
-      ),
-    }));
+    setState((s) => {
+      const existing = s.mealSlots.find((m) => m.id === mealSlotId);
+      const restored = existing?.deducted_ingredients ? restoreInventory(s.inventory, existing.deducted_ingredients) : s.inventory;
+      return {
+        ...s,
+        inventory: restored,
+        mealSlots: s.mealSlots.map((m) =>
+          m.id === mealSlotId ? { ...m, status: "ordered_in", recipe_id: null, output_mode: null, deducted_ingredients: null } : m
+        ),
+      };
+    });
   }, []);
 
   const ensureMealSlot = useCallback(
@@ -441,6 +485,8 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
         recipe_id: null,
         locked: false,
         is_new_item_suggestion: false,
+        deducted_ingredients: null,
+        cooked_at: null,
       };
       setState((s) => ({ ...s, mealSlots: [...s.mealSlots, created] }));
       return created;
@@ -469,21 +515,25 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
 
   // Rule (brief #7): only the FIRST time a recipe appears in a profile's
   // history does feedback get requested; deduction always happens.
+  // Flowchart 3 & 11: "mark cooked" is a distinct, later event from
+  // confirmation — inventory already moved at confirm time, so this only
+  // records a cooked timestamp and checks the first-time feedback gate.
   const markCooked = useCallback(
     (mealSlotId: string) => {
       const slot = state.mealSlots.find((m) => m.id === mealSlotId);
       if (!slot || !slot.recipe_id) return { needsFeedback: false };
       const recipe = state.recipes.find((r) => r.id === slot.recipe_id);
       if (!recipe) return { needsFeedback: false };
-      const presentCount = getEffectivePresence(mealSlotId).filter((p) => p.present).length;
-      const scaled = scaleIngredients(recipe.base_ingredients, recipe.portion_base, presentCount || recipe.portion_base);
 
-      setState((s) => ({ ...s, inventory: deductInventory(s.inventory, scaled) }));
+      setState((s) => ({
+        ...s,
+        mealSlots: s.mealSlots.map((m) => (m.id === mealSlotId ? { ...m, cooked_at: new Date().toISOString() } : m)),
+      }));
 
       const alreadySeen = currentProfile ? hasFeedback(currentProfile.id, recipe.id) : true;
       return { needsFeedback: !alreadySeen };
     },
-    [state.mealSlots, state.recipes, getEffectivePresence, currentProfile, hasFeedback]
+    [state.mealSlots, state.recipes, currentProfile, hasFeedback]
   );
 
   const submitFeedback = useCallback(
@@ -568,7 +618,7 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
             }
             const veg = d % 3 !== 2;
             const people = s.profiles.map((p) => toPersonConstraints(p, s.allergies, s.avoidances));
-            const ranked = filterAndRankRecipes(s.recipes, people, { veg, moods: [], baselineIds });
+            const ranked = filterAndRankRecipes(s.recipes, people, { veg, moods: [], baselineIds, dishRatings: s.dishRatings });
             const fresh = ranked.filter((r) => !recentlyUsed.slice(-3).includes(r.recipe.id));
             const pool = fresh.length ? fresh : ranked;
             const pick = pool[cursor % Math.max(1, pool.length)] ?? ranked[0];
@@ -590,6 +640,8 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
                 recipe_id: pick.recipe.id,
                 locked: false,
                 is_new_item_suggestion: pick.isNewItem,
+                deducted_ingredients: null,
+                cooked_at: null,
               });
             }
           }
@@ -691,6 +743,7 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
         age: null,
         weight: null,
         goal: null,
+        protein_target_g: null,
         engagement_style: null,
         accessibility: { colorblind_safe: false, larger_text: false },
         onboarded: false,
@@ -737,6 +790,7 @@ export function DemoStoreProvider({ children }: { children: React.ReactNode }) {
     saveHealthConditions,
     saveVitaminAnomalies,
     saveLikesDislikes,
+    rateDish,
     saveTypicalMeals,
     setAccessibility,
     dismissProfileNudge,

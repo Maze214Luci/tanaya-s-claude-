@@ -21,7 +21,7 @@ export function FeedbackModal({
 
   function save() {
     submitFeedback(mealSlotId, { taste_rating: stars, portion_feedback: portion, repeat_decision: repeat });
-    toast("✦ Feedback saved — inventory updated");
+    toast("✦ Feedback saved");
     onDone();
   }
 

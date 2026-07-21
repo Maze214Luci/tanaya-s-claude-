@@ -28,10 +28,12 @@ export function crossCheckIngredients(
 }
 
 /**
- * Rule (brief #6): deduction happens at meal confirmation, not a separate
- * "cooked" event — this fn is the single place that mutates inventory for a
- * recipe, called by both the "confirm suggestion" and "mark cooked" flows
- * against the exact ingredient list shown to the user.
+ * Rule (build brief #6 / flowchart 3 & 18): deduction happens at meal
+ * confirmation, not at "mark cooked" — this fn is the single place that
+ * subtracts inventory, against the exact scaled ingredient list a slot
+ * confirms with. The caller is responsible for snapshotting that same list
+ * onto the slot (meal_slots.deducted_ingredients) so it can be reversed
+ * exactly later via restoreInventory, rather than recomputed.
  */
 export function deductInventory(
   inventory: InventoryItem[],
@@ -42,6 +44,22 @@ export function deductInventory(
     if (!used) return item;
     const quantity = Math.max(0, item.quantity - used.quantity);
     return { ...item, quantity };
+  });
+}
+
+/**
+ * Rule (flowchart 25 — Reverse Inventory Deduction): a confirmed meal that
+ * gets cancelled (switched to ordered-in) or swapped for a different dish
+ * must add back exactly what was deducted for it, not a recomputed amount.
+ */
+export function restoreInventory(
+  inventory: InventoryItem[],
+  ingredients: IngredientLine[]
+): InventoryItem[] {
+  return inventory.map((item) => {
+    const used = ingredients.find((i) => i.name.toLowerCase() === item.name.toLowerCase());
+    if (!used) return item;
+    return { ...item, quantity: item.quantity + used.quantity };
   });
 }
 

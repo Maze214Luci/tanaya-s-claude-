@@ -48,7 +48,7 @@ export default function RecipePage({ params }: { params: Promise<{ mealSlotId: s
     if (needsFeedback) {
       setShowFeedback(true);
     } else {
-      toast("Marked cooked — inventory updated");
+      toast("Marked cooked");
       router.push("/");
     }
   }

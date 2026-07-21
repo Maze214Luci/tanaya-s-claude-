@@ -43,6 +43,7 @@ export interface Profile {
   age: number | null;
   weight: number | null;
   goal: string | null;
+  protein_target_g: number | null;
   engagement_style: EngagementStyle | null;
   accessibility: Accessibility;
   onboarded: boolean;
@@ -93,6 +94,17 @@ export interface LikeDislike {
   source: "seed" | "rating";
 }
 
+export type DishRatingValue = "disliked" | "liked" | "loved";
+export type DishSection = "breakfast" | "lunch_dinner" | "snacks";
+
+export interface DishRating {
+  id: string;
+  profile_id: string;
+  recipe_id: string;
+  rating: DishRatingValue;
+  created_at: string;
+}
+
 export interface IngredientLine {
   name: string;
   quantity: number;
@@ -125,6 +137,8 @@ export interface MealSlot {
   recipe_id: string | null;
   locked: boolean;
   is_new_item_suggestion: boolean;
+  deducted_ingredients: IngredientLine[] | null;
+  cooked_at: string | null;
 }
 
 export interface MealSlotPresence {

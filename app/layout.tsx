@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Fraunces, Inter } from "next/font/google";
+import { Fraunces, Lora, Inter } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import { ToastHost } from "@/components/ToastHost";
+import { WatercolorDefs } from "@/components/Watercolor";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -11,16 +12,22 @@ const fraunces = Fraunces({
   weight: ["500", "600"],
 });
 
-const inter = Inter({
-  variable: "--font-inter",
+const lora = Lora({
+  variable: "--font-lora",
   subsets: ["latin"],
+  style: ["normal", "italic"],
   weight: ["400", "500"],
 });
 
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
 export const metadata: Metadata = {
-  title: "Kitchen companion",
-  description:
-    "A shared source of truth for what your household eats, plans, and has in the pantry.",
+  title: "Larder",
+  description: "A quiet, well-kept kitchen — shared meal planning, pantry, and prep for the whole household.",
 };
 
 export default function RootLayout({
@@ -29,8 +36,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
+    <html lang="en" className={`${fraunces.variable} ${lora.variable} ${inter.variable}`}>
       <body className="min-h-full">
+        <WatercolorDefs />
         <StoreProvider>
           {children}
           <ToastHost />

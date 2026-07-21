@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { UserRound, X, Leaf, Drumstick, Moon, Pencil } from "lucide-react";
+import { UserRound, X, Leaf, Drumstick, Moon, Pencil, Heart, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useStore } from "@/lib/store";
-import type { ScheduleDayType } from "@/lib/types";
+import { DishSwiper } from "@/components/DishSwiper";
+import { DISH_SECTIONS, sectionForRecipe } from "@/lib/engine/dishSections";
+import type { DishSection, ScheduleDayType } from "@/lib/types";
 
 const GOALS = ["PCOS management", "Weight loss", "Muscle gain", "Maintenance", "Post-workout recovery", "General wellness"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -99,11 +101,14 @@ export default function ProfilePage() {
   } = useStore();
 
   const [editing, setEditing] = useState<string | null>(null);
+  const [prefSection, setPrefSection] = useState<DishSection>("breakfast");
+  const [swiping, setSwiping] = useState(false);
 
   // identity
   const [name, setName] = useState(currentProfile?.name ?? "");
   const [age, setAge] = useState(currentProfile?.age?.toString() ?? "");
   const [weight, setWeight] = useState(currentProfile?.weight?.toString() ?? "");
+  const [proteinTarget, setProteinTarget] = useState(currentProfile?.protein_target_g?.toString() ?? "");
   const [goal, setGoal] = useState(currentProfile?.goal ?? GOALS[0]);
   const [engagement, setEngagement] = useState<"planner" | "quick">(currentProfile?.engagement_style ?? "planner");
 
@@ -163,6 +168,7 @@ export default function ProfilePage() {
       setName(currentProfile!.name);
       setAge(currentProfile!.age?.toString() ?? "");
       setWeight(currentProfile!.weight?.toString() ?? "");
+      setProteinTarget(currentProfile!.protein_target_g?.toString() ?? "");
       setGoal(currentProfile!.goal ?? GOALS[0]);
       setEngagement(currentProfile!.engagement_style ?? "planner");
     }
@@ -175,7 +181,14 @@ export default function ProfilePage() {
   }
 
   function saveIdentity() {
-    savePersonaStep1({ name, age: age ? Number(age) : null, weight: weight ? Number(weight) : null, goal, engagement_style: engagement });
+    savePersonaStep1({
+      name,
+      age: age ? Number(age) : null,
+      weight: weight ? Number(weight) : null,
+      protein_target_g: proteinTarget ? Number(proteinTarget) : null,
+      goal,
+      engagement_style: engagement,
+    });
     setEditing(null);
   }
   function saveAllergiesSection() { saveAllergies(allergyDraft); setEditing(null); }
@@ -234,6 +247,8 @@ export default function ProfilePage() {
             <input type="number" value={age} onChange={(e) => setAge(e.target.value)} />
             <label>Weight (kg)</label>
             <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} />
+            <label>Daily protein target (g)</label>
+            <input type="number" value={proteinTarget} onChange={(e) => setProteinTarget(e.target.value)} />
             <label>Goal</label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
               {GOALS.map((g) => (
@@ -252,6 +267,7 @@ export default function ProfilePage() {
             <div className="item"><span style={{ color: "var(--ink2)" }}>Name</span><span>{currentProfile.name}</span></div>
             <div className="item"><span style={{ color: "var(--ink2)" }}>Age</span><span>{currentProfile.age ?? "not set"}</span></div>
             <div className="item"><span style={{ color: "var(--ink2)" }}>Weight</span><span>{currentProfile.weight ? `${currentProfile.weight} kg` : "not set"}</span></div>
+            <div className="item"><span style={{ color: "var(--ink2)" }}>Protein target</span><span>{currentProfile.protein_target_g ? `${currentProfile.protein_target_g} g/day` : "not set"}</span></div>
             <div className="item"><span style={{ color: "var(--ink2)" }}>Goal</span><span>{currentProfile.goal ?? "not set"}</span></div>
             <div className="item"><span style={{ color: "var(--ink2)" }}>Engagement style</span><span>{currentProfile.engagement_style === "quick" ? "Quick decisions" : currentProfile.engagement_style === "planner" ? "Planner" : "not set"}</span></div>
           </>
@@ -364,6 +380,77 @@ export default function ProfilePage() {
           </div>
         )}
       </Section>
+
+      {/* dish preferences — whole-dish swipe ratings, distinct from
+          ingredient-level likes/dislikes below */}
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <h2 style={{ margin: 0 }}>Food preferences</h2>
+          {!swiping && (
+            <button className="btn-link" onClick={() => setSwiping(true)}>
+              <Pencil size={11} style={{ display: "inline", verticalAlign: -1, marginRight: 3 }} /> rate more
+            </button>
+          )}
+        </div>
+        {swiping ? (
+          <>
+            <DishSwiper onDone={() => setSwiping(false)} />
+            <button className="btn-ghost" style={{ width: "100%", marginTop: 10 }} onClick={() => setSwiping(false)}>done for now</button>
+          </>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+              {DISH_SECTIONS.map((s) => (
+                <div
+                  key={s.key}
+                  className="chip"
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    textAlign: "center",
+                    background: prefSection === s.key ? "var(--sage-deep)" : "var(--surf)",
+                    color: prefSection === s.key ? "var(--surf)" : "var(--ink2)",
+                  }}
+                  onClick={() => setPrefSection(s.key)}
+                >
+                  {s.label}
+                </div>
+              ))}
+            </div>
+            {(() => {
+              const myRatings = state.dishRatings.filter((d) => d.profile_id === currentProfile.id);
+              const sectionRecipes = state.recipes.filter((r) => sectionForRecipe(r) === prefSection);
+              const rated = sectionRecipes
+                .map((r) => ({ recipe: r, rating: myRatings.find((d) => d.recipe_id === r.id)?.rating }))
+                .filter((x): x is { recipe: typeof x.recipe; rating: NonNullable<typeof x.rating> } => Boolean(x.rating));
+              const groups: { key: "loved" | "liked" | "disliked"; label: string; icon: React.ReactNode }[] = [
+                { key: "loved", label: "Loved", icon: <Heart size={13} color="var(--brick)" /> },
+                { key: "liked", label: "Liked", icon: <ThumbsUp size={13} color="var(--sage-deep)" /> },
+                { key: "disliked", label: "Disliked", icon: <ThumbsDown size={13} color="var(--ink2)" /> },
+              ];
+              if (rated.length === 0) {
+                return <p className="sub" style={{ margin: 0 }}>Nothing rated in this section yet.</p>;
+              }
+              return groups.map((g) => {
+                const items = rated.filter((r) => r.rating === g.key);
+                if (items.length === 0) return null;
+                return (
+                  <div key={g.key} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--ink2)", marginBottom: 6 }}>
+                      {g.icon} {g.label.toUpperCase()}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {items.map(({ recipe }) => (
+                        <span className="chip sel" key={recipe.id}>{recipe.name}</span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </>
+        )}
+      </div>
 
       {/* likes / dislikes */}
       <Section title="Likes & dislikes" editing={editing === "likes"} onEdit={() => openEdit("likes")} onCancel={saveLikesSection}>

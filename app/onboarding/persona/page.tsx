@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sparkles, X, Leaf, Drumstick, Moon } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { nextRouteFor } from "@/lib/store/routing";
+import { DishSwiper } from "@/components/DishSwiper";
 import type { MealSlot } from "@/lib/types";
 
 const GOALS = ["PCOS management", "Weight loss", "Muscle gain", "Maintenance"];
@@ -101,12 +102,13 @@ export default function PersonaOnboardingPage() {
     completeOnboarding,
   } = useStore();
   const [step, setStep] = useState(1);
-  const TOTAL_STEPS = 10;
+  const TOTAL_STEPS = 11;
 
   // step 1 — identity
   const [age, setAge] = useState("");
   const [weight, setWeight] = useState("");
   const [goal, setGoal] = useState(GOALS[0]);
+  const [proteinTarget, setProteinTarget] = useState("");
   const [engagement, setEngagement] = useState<"planner" | "quick">("planner");
 
   // step 2 — allergies
@@ -162,7 +164,13 @@ export default function PersonaOnboardingPage() {
   }
 
   function goStep2() {
-    savePersonaStep1({ age: age ? Number(age) : null, weight: weight ? Number(weight) : null, goal, engagement_style: engagement });
+    savePersonaStep1({
+      age: age ? Number(age) : null,
+      weight: weight ? Number(weight) : null,
+      goal,
+      protein_target_g: proteinTarget ? Number(proteinTarget) : null,
+      engagement_style: engagement,
+    });
     setStep(2);
   }
   function goStep3() {
@@ -214,6 +222,9 @@ export default function PersonaOnboardingPage() {
     if (!accessibilitySkipped) setAccessibility({ colorblind_safe: colorblind, larger_text: largerText });
     setStep(10);
   }
+  function goStep11() {
+    setStep(11);
+  }
   function finish() {
     completeOnboarding();
     router.push("/");
@@ -232,6 +243,9 @@ export default function PersonaOnboardingPage() {
           <input type="number" placeholder="29" value={age} onChange={(e) => setAge(e.target.value)} />
           <label>Weight (kg)</label>
           <input type="number" placeholder="62" value={weight} onChange={(e) => setWeight(e.target.value)} />
+          <label>Daily protein target (g)</label>
+          <input type="number" placeholder="e.g. 70" value={proteinTarget} onChange={(e) => setProteinTarget(e.target.value)} />
+          <p className="sub" style={{ margin: "0 0 4px" }}>Used for portion sizing later — a rough number is fine.</p>
           <label>Your goal</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "6px 0 4px" }}>
             {GOALS.map((g) => (
@@ -514,7 +528,19 @@ export default function PersonaOnboardingPage() {
 
       {step === 10 && (
         <>
-          <StepHeader step={10} total={TOTAL_STEPS} required={false} />
+          <StepHeader step={10} total={TOTAL_STEPS} required />
+          <h1>What do you actually like eating?</h1>
+          <p className="sub">Swipe or tap through a few dishes per section — this is what actually drives suggestions, not just filters.</p>
+          <DishSwiper onDone={goStep11} />
+          <div style={{ marginTop: 14 }}>
+            <button className="btn-ghost" onClick={() => setStep(9)}>back</button>
+          </div>
+        </>
+      )}
+
+      {step === 11 && (
+        <>
+          <StepHeader step={11} total={TOTAL_STEPS} required={false} />
           <h1>
             <Sparkles size={18} style={{ display: "inline", verticalAlign: -3, marginRight: 4 }} /> All set, {currentProfile.name}
           </h1>
@@ -564,6 +590,14 @@ export default function PersonaOnboardingPage() {
           <div className="card">
             <div className="item"><span style={{ color: "var(--ink2)" }}>Accessibility</span><span>{accessibilitySkipped ? "not set — add later from your profile" : [colorblind && "colorblind-safe", largerText && "larger text"].filter(Boolean).join(", ") || "none"}</span></div>
             <button className="btn-link" onClick={() => setStep(9)}>edit accessibility</button>
+          </div>
+
+          <div className="card">
+            <div className="item">
+              <span style={{ color: "var(--ink2)" }}>Dish preferences</span>
+              <span>{state.dishRatings.filter((d) => d.profile_id === currentProfile.id).length} rated</span>
+            </div>
+            <button className="btn-link" onClick={() => setStep(10)}>rate more dishes</button>
           </div>
 
           <button className="btn-primary" style={{ width: "100%", marginTop: 8 }} onClick={finish}>

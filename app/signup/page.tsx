@@ -54,10 +54,11 @@ export default function SignupPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[420px] flex-col justify-center px-6">
-      <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 14, color: "var(--sage)", textAlign: "center", margin: "0 0 20px" }}>
-        kitchen companion
+      <h1 style={{ textAlign: "center", fontSize: 32 }}>Larder</h1>
+      <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 15, color: "var(--sage-deep)", textAlign: "center", margin: "0 0 20px" }}>
+        a quiet, well-kept kitchen
       </p>
-      <h1 style={{ textAlign: "center" }}>Create your account</h1>
+      <h2 style={{ textAlign: "center", justifyContent: "center", fontSize: 18 }}>Create your account</h2>
       <p className="sub" style={{ textAlign: "center" }}>
         If your household admin already invited this email, you&apos;ll be added to their home automatically.
       </p>
