@@ -26,7 +26,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Larder",
+  title: "Kitchen Kanvas",
   description: "A quiet, well-kept kitchen — shared meal planning, pantry, and prep for the whole household.",
 };
 

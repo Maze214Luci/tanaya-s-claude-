@@ -68,7 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Watercolor color="var(--sage)" size={54} variant={1} style={{ top: -9, left: -9 }} />
           </div>
           <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 18, color: "var(--ink)", lineHeight: 1.1 }}>
-            Larder
+            Kitchen Kanvas
           </div>
         </div>
         <nav className="flex flex-col gap-0.5">

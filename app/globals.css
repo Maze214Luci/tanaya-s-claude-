@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Larder design system — linen & buttermilk base, sage + marigold
+   Kitchen Kanvas design system — linen & buttermilk base, sage + marigold
    accents, walnut ink text. Same custom-property names as before
    so component files don't need touching — only the values change.
    ============================================================ */
@@ -36,24 +36,6 @@
   --moon: #A392AC;
   --bd: #4A4130;
   --shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.3);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #241F17;
-    --surf: #2F281E;
-    --buttermilk: #3A3020;
-    --ink: #F2E9DA;
-    --ink2: #C2B6A0;
-    --sage: #93A681;
-    --sage-deep: #A9BE97;
-    --brick: #D39A76;
-    --amber: #D9AE4E;
-    --amber-soft: #B08A3A;
-    --moon: #A392AC;
-    --bd: #4A4130;
-    --shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.3);
-  }
 }
 
 @theme inline {

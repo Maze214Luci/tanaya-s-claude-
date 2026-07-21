@@ -54,7 +54,7 @@ export default function SignupPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[420px] flex-col justify-center px-6">
-      <h1 style={{ textAlign: "center", fontSize: 32 }}>Larder</h1>
+      <h1 style={{ textAlign: "center", fontSize: 32 }}>Kitchen Kanvas</h1>
       <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 15, color: "var(--sage-deep)", textAlign: "center", margin: "0 0 20px" }}>
         a quiet, well-kept kitchen
       </p>

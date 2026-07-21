@@ -42,7 +42,7 @@ export default function LoginPage() {
         <Watercolor color="var(--sage)" size={90} variant={0} style={{ top: -14, left: 6 }} />
         <Watercolor color="var(--amber-soft)" size={64} variant={2} style={{ top: 4, left: 40, opacity: 0.4 }} />
       </div>
-      <h1 style={{ textAlign: "center", fontSize: 40 }}>Larder</h1>
+      <h1 style={{ textAlign: "center", fontSize: 40 }}>Kitchen Kanvas</h1>
       <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 16, color: "var(--sage-deep)", textAlign: "center", margin: "0 0 22px" }}>
         a quiet, well-kept kitchen
       </p>

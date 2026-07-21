@@ -1,4 +1,4 @@
-// The Larder design system's one signature flourish: a soft, irregular
+// The Kitchen Kanvas design system's one signature flourish: a soft, irregular
 // watercolor bloom (an SVG turbulence filter over a blob shape) used
 // behind brand marks and card corners instead of icons or food photos.
 // WatercolorDefs renders the filter once; Watercolor renders one bloom.
