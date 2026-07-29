@@ -39,11 +39,11 @@ export default function LoginPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-[420px] flex-col justify-center px-6">
       <div className="relative mx-auto mb-1 h-16 w-24 overflow-hidden" aria-hidden>
-        <Watercolor color="var(--sage)" size={90} variant={0} style={{ top: -14, left: 6 }} />
+        <Watercolor color="var(--brick)" size={90} variant={0} style={{ top: -14, left: 6 }} />
         <Watercolor color="var(--amber-soft)" size={64} variant={2} style={{ top: 4, left: 40, opacity: 0.4 }} />
       </div>
       <h1 style={{ textAlign: "center", fontSize: 40 }}>Kitchen Kanvas</h1>
-      <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 16, color: "var(--sage-deep)", textAlign: "center", margin: "0 0 22px" }}>
+      <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 16, color: "var(--brick)", textAlign: "center", margin: "0 0 22px" }}>
         a quiet, well-kept kitchen
       </p>
       <h2 style={{ textAlign: "center", justifyContent: "center", fontSize: 18 }}>Welcome back</h2>

@@ -88,18 +88,18 @@ export default function HouseholdPage() {
                     <span>{i.invitee_contact} <span className="tag" style={{ margin: "0 0 0 4px" }}>{i.proposed_role}</span></span>
                     {mode === "demo" ? (
                       <span style={{ display: "flex", gap: 6 }}>
-                        <button className="btn-ghost" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => approveInvite(i.id, "member")}>
+                        <button className="btn-success" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => approveInvite(i.id, "member")}>
                           approve as member
                         </button>
-                        <button className="btn-ghost" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => approveInvite(i.id, "admin")}>
+                        <button className="btn-success" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => approveInvite(i.id, "admin")}>
                           approve as admin
                         </button>
-                        <button className="btn-ghost" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => declineInvite(i.id)}>
+                        <button className="btn-danger" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => declineInvite(i.id)}>
                           decline
                         </button>
                       </span>
                     ) : (
-                      <button className="btn-ghost" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => declineInvite(i.id)}>
+                      <button className="btn-danger" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => declineInvite(i.id)}>
                         cancel invite
                       </button>
                     )}

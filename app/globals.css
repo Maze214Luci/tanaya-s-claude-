@@ -1,25 +1,28 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Kitchen Kanvas design system — linen & buttermilk base, sage + marigold
-   accents, walnut ink text. Same custom-property names as before
-   so component files don't need touching — only the values change.
+   Kitchen Kanvas design system — warm cream base, terracotta as the
+   primary brand/action color, sage reserved for secondary/positive
+   states. Same custom-property names as before so component files
+   don't need touching — only the values (and which class references
+   which token) change.
    ============================================================ */
 
 :root {
-  --bg: #F7F1E6;       /* linen — app background */
+  --bg: #F8F3E9;       /* warm cream — app background */
   --surf: #FFFFFF;      /* card/panel surface */
-  --buttermilk: #EFE3C8; /* soft highlight panels (nudges, callouts) */
-  --ink: #362F26;       /* walnut ink — body text */
-  --ink2: #6B6255;      /* ink soft — secondary text */
-  --sage: #7E9271;      /* primary accent, icons, dots */
-  --sage-deep: #4F5D46; /* buttons, links, active nav, text-on-light */
-  --brick: #B97A56;     /* clay — firm attention (allergy, out of stock) */
+  --buttermilk: #F0E6D2; /* soft highlight panels (nudges, callouts) */
+  --ink: #33261E;       /* espresso ink — body text */
+  --ink2: #7A6E62;      /* ink soft — secondary text */
+  --sage: #6E9463;      /* secondary accent — success, positive, icons */
+  --sage-deep: #4C6B45; /* secondary buttons/badges — approve, in-stock */
+  --brick: #B5432B;     /* terracotta — primary CTAs, links, active nav, brand */
+  --brick-deep: #93341F; /* pressed/emphasis terracotta */
   --amber: #C99A34;     /* marigold — gentle attention (expiring, low stock) */
   --amber-soft: #E3C878;
   --moon: #7D6B86;      /* dusty plum — fasting / third accent */
-  --bd: #DDD2BC;        /* line */
-  --shadow: 0 2px 4px rgba(54, 47, 38, 0.06), 0 8px 20px rgba(54, 47, 38, 0.07);
+  --bd: #E3D9C4;        /* line */
+  --shadow: 0 2px 4px rgba(51, 38, 30, 0.06), 0 8px 20px rgba(51, 38, 30, 0.07);
 }
 
 :root[data-theme="dark"] {
@@ -28,9 +31,10 @@
   --buttermilk: #3A3020;
   --ink: #F2E9DA;
   --ink2: #C2B6A0;
-  --sage: #93A681;
-  --sage-deep: #A9BE97;
-  --brick: #D39A76;
+  --sage: #8FB081;
+  --sage-deep: #9FC290;
+  --brick: #E08161;
+  --brick-deep: #C96742;
   --amber: #D9AE4E;
   --amber-soft: #B08A3A;
   --moon: #A392AC;
@@ -105,7 +109,7 @@ h2 {
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--sage-deep);
+  color: var(--brick);
   font-weight: 600;
 }
 
@@ -119,7 +123,7 @@ h2 {
 .card {
   background: var(--surf);
   border: 1px solid var(--bd);
-  border-radius: 8px;
+  border-radius: 18px;
   padding: 16px 18px;
   margin-bottom: 12px;
   box-shadow: var(--shadow);
@@ -150,21 +154,33 @@ button:active {
 }
 
 .btn-primary {
-  background: var(--sage-deep);
+  background: var(--brick);
   color: var(--surf);
-  box-shadow: 0 3px 8px rgba(79, 93, 70, 0.28);
+  box-shadow: 0 3px 8px rgba(181, 67, 43, 0.3);
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--sage-deep);
-  border: 1.5px solid var(--sage-deep);
+  color: var(--ink);
+  border: 1.5px solid var(--bd);
+}
+
+.btn-success {
+  background: var(--sage-deep);
+  color: var(--surf);
+  box-shadow: 0 3px 8px rgba(76, 107, 69, 0.28);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--brick);
+  border: 1.5px solid var(--brick);
 }
 
 .btn-link {
   font-family: var(--font-sans);
   font-size: 12px;
-  color: var(--sage-deep);
+  color: var(--brick);
   text-decoration: underline;
   text-underline-offset: 3px;
   font-weight: 600;
@@ -231,9 +247,9 @@ label {
 }
 
 .chip.sel {
-  background: var(--sage-deep);
+  background: var(--brick);
   color: var(--surf);
-  border-color: var(--sage-deep);
+  border-color: var(--brick);
 }
 
 .chip.off {
